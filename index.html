@@ -363,17 +363,17 @@
     if (stage === 1) {
       // レベル1：音声だけで勝負
       if (questionTextLabel) {
-        questionTextLabel.innerHTML = " <b>&#128066;	音声を「聞いて」、正しい日本語を選ぼう。</b>";
+        questionTextLabel.innerHTML = " <b>&#128066; 音声を「聞いて」、正しい日本語を選ぼう。</b>";
       }
       enHintEl.textContent = "";                       // 英単語は隠す
-      audioBtn.textContent = "&#65039; 音声を聞く";
+      audioBtn.textContent = "▶ 音声を聞く";
     } else {
       // レベル2：英単語を見て答える
       if (questionTextLabel) {
         questionTextLabel.innerHTML = " <b>&#128064; 英単語を「見て」、正しい日本語を選ぼう。</b>";
       }
       enHintEl.textContent = q.en;                     // 英単語を表示
-      audioBtn.textContent = "&#128266;	もう一度音声を聞く";
+      audioBtn.textContent = "▶	もう一度音声を聞く";
     }
 
     clearChoices();
@@ -472,3 +472,4 @@
 
 </body>
 </html>
+
