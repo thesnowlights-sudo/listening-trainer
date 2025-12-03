@@ -1,0 +1,477 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>埼玉入試 英語リスニング単語トレーナー</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f4f4f4;
+    }
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 16px;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 1.3rem;
+      margin: 0 0 8px;
+    }
+    .subtitle {
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    .status {
+      font-size: 0.8rem;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    .card {
+      margin-top: 8px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #f8f9ff;
+    }
+    .question-text {
+      font-size: 0.95rem;
+      color: #555;
+      margin-bottom: 8px;
+    }
+    .main-en {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #1565c0;
+      margin-bottom: 4px;
+    }
+    .note {
+      font-size: 0.75rem;
+      color: #999;
+      margin-top: 4px;
+    }
+    .choices {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .choice-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #fafafa;
+      text-align: left;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .choice-btn.correct {
+      background: #c8e6c9;
+      border-color: #2e7d32;
+    }
+    .choice-btn.wrong {
+      background: #ffcdd2;
+      border-color: #c62828;
+    }
+    .controls {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    button {
+      flex: 1 1 calc(50% - 4px);
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    .btn-main {
+      background: #1976d2;
+      color: #fff;
+    }
+    .small {
+      font-size: 0.75rem;
+      color: #777;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>英語リスニング単語トレーナー</h1>
+    <div class="subtitle">
+     埼玉県公立高校入試でよく出る「数字・場所・動詞」を中心に出題します。<br>
+     3回正解すると、ステップ2に自動的に進みます。間違えた問題は数日後にまた登場します。<br>
+　>>ステップ1：音声を聞く → 答える <br>
+　>>ステップ2：英単語を見る → 答える 。<br>
+
+※進捗はこの端末のブラウザに保存されます。同じ端末で続けてね。
+
+    </div>
+
+  
+
+    <div class="card">
+<div class="question-text" id="questionTextLabel">
+&#128538;<b>音声を聞いて、正しい日本語を選ぼう。</b>
+</div>
+
+      <div class="main-en" id="enHint"></div>
+      <div class="choices" id="choices"></div>
+      <div class="note" id="note"></div>
+    </div>
+
+    <div class="controls">
+      <button id="audioBtn" class="btn-main">▶音声を聞く</button>
+      <button id="skipBtn" class="btn-secondary">スキップ</button>
+      <button id="nextBtn" class="btn-secondary">次へ進む</button>
+    </div>
+
+    <div class="small">
+      <div class="status" id="dateInfo"></div>
+    <div class="status" id="queueInfo"></div>
+    <div class="status" id="wordInfo"></div>
+    </div>
+  </div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script>
+  // ★★ スプレッドシートのCSV公開URL ★★
+  const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?output=csv";
+
+  // 1. スプレッドシートから問題を読み込む
+  let questions = [];
+
+  async function loadQuestionsFromSheet() {
+    const res = await fetch(SHEET_CSV_URL);
+    const csvText = await res.text();
+
+    const parsed = Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true
+    });
+
+    questions = parsed.data
+      .map((row, idx) => {
+        const correctIdx = Number(row.correct || "1") - 1;
+        return {
+          id: Number(row.id || idx + 1),
+          category: row.category || "",
+          en: row.en || "",
+          jp: row.jp || "",
+          audio_text: row.audio_text || row.en || "",
+          choices: [row.choice1, row.choice2, row.choice3, row.choice4],
+          correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
+          note: row.note || ""
+        };
+      })
+      .filter(q => q.en && q.jp && q.choices[0]);
+
+    if (questions.length === 0) {
+      alert("シートから問題を読み込めませんでした。ヘッダー名やデータを確認してください。");
+      return;
+    }
+
+    queue = getTodayQueue(questions);
+    index = 0;
+    renderCard();
+  }
+
+  // ============================
+  // 2. 進捗管理（SRS）
+  // ============================
+  const progressKey = "saitama_listeningProgress_fromSheet_v1";
+  const intervals = [1, 2, 5, 999];
+
+  function todayStr() {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  }
+
+  function loadProgress() {
+    try {
+      return JSON.parse(localStorage.getItem(progressKey) || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveProgress(p) {
+    localStorage.setItem(progressKey, JSON.stringify(p));
+  }
+
+  function updateResult(id, isCorrect) {
+    const prog = loadProgress();
+    const now = todayStr();
+    if (!prog[id]) {
+      prog[id] = { box: 0, nextDue: now, correct: 0, wrong: 0 };
+    }
+    let box = prog[id].box;
+
+    if (isCorrect) {
+      box = Math.min(box + 1, 3);
+      prog[id].correct++;
+    } else {
+      box = 0;
+      prog[id].wrong++;
+    }
+
+    const d = new Date();
+    d.setDate(d.getDate() + intervals[box]);
+    prog[id].box = box;
+    prog[id].nextDue = d.toISOString().slice(0, 10);
+    saveProgress(prog);
+  }
+
+  function getTodayQueue(all) {
+    const prog = loadProgress();
+    const today = todayStr();
+    let list = all.filter(q => {
+      const p = prog[q.id];
+      if (!p) return true;
+      return p.nextDue <= today;
+    });
+    if (list.length === 0) list = all.slice();
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    return list;
+  }
+
+  // ============================
+  // 3. 正解ピンポン音
+  // ============================
+  let audioCtx = null;
+  function playCorrectSound() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!audioCtx) audioCtx = new AC();
+
+      const now = audioCtx.currentTime;
+
+      // 1音目
+      const osc1 = audioCtx.createOscillator();
+      const g1 = audioCtx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.value = 880;
+      g1.gain.setValueAtTime(0.0, now);
+      g1.gain.linearRampToValueAtTime(0.25, now + 0.01);
+      g1.gain.linearRampToValueAtTime(0.0, now + 0.12);
+      osc1.connect(g1);
+      g1.connect(audioCtx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.15);
+
+      // 2音目
+      const osc2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.value = 1320;
+      g2.gain.setValueAtTime(0.0, now + 0.10);
+      g2.gain.linearRampToValueAtTime(0.2, now + 0.12);
+      g2.gain.linearRampToValueAtTime(0.0, now + 0.24);
+      osc2.connect(g2);
+      g2.connect(audioCtx.destination);
+      osc2.start(now + 0.10);
+      osc2.stop(now + 0.25);
+    } catch (e) {}
+  }
+
+  // ============================
+  // 4. 出題状態と描画
+  // ============================
+  let queue = [];
+  let index = 0;
+
+  const dateInfoEl = document.getElementById("dateInfo");
+  const queueInfoEl = document.getElementById("queueInfo");
+  const wordInfoEl = document.getElementById("wordInfo");
+  const enHintEl = document.getElementById("enHint");
+  const choicesEl = document.getElementById("choices");
+  const noteEl = document.getElementById("note");
+  const questionTextLabel = document.getElementById("questionTextLabel");
+
+  const audioBtn = document.getElementById("audioBtn");
+  const skipBtn = document.getElementById("skipBtn");
+  const nextBtn = document.getElementById("nextBtn");
+
+  function getCurrent() {
+    if (queue.length === 0) return null;
+    return queue[index];
+  }
+
+  // レベル判定：1回でも正解していればレベル2
+  function getStageForQuestion(q) {
+    const prog = loadProgress();
+    const p = prog[q.id];
+    if (!p) return 1;        // 初回はレベル1
+    if (p.box >= 3) return 2; // 3回以上正解でレベル2
+    return 1;
+  }
+
+  function renderHeader() {
+    dateInfoEl.textContent = "今日：" + todayStr();
+    queueInfoEl.textContent = "今日の出題対象：" + queue.length + "問 / 今：" + (index + 1) + "問目";
+    const prog = loadProgress();
+    const q = getCurrent();
+    if (!q) {
+      wordInfoEl.textContent = "";
+      return;
+    }
+    const p = prog[q.id];
+    if (!p) {
+      wordInfoEl.textContent = `ID:${q.id}　カテゴリ:${q.category || ""}　初出題`;
+    } else {
+      wordInfoEl.textContent =
+        `ID:${q.id}　カテゴリ:${q.category || ""}　` +
+        `正解:${p.correct || 0} / ミス:${p.wrong || 0} / 次回:${p.nextDue}`;
+    }
+  }
+
+  function clearChoices() {
+    choicesEl.innerHTML = "";
+  }
+
+  function renderCard() {
+    const q = getCurrent();
+    if (!q) {
+      enHintEl.textContent = "";
+      clearChoices();
+      noteEl.textContent = "出題できる問題がありません。シートのデータを確認してください。";
+      return;
+    }
+    renderHeader();
+
+    const stage = getStageForQuestion(q);
+
+    // レベルごとに表示変更
+    if (stage === 1) {
+      // レベル1：音声だけで勝負
+      if (questionTextLabel) {
+        questionTextLabel.innerHTML = " <b>&#128066; 音声を「聞いて」、正しい日本語を選ぼう。</b>";
+      }
+      enHintEl.textContent = "";                       // 英単語は隠す
+      audioBtn.textContent = "▶ 音声を聞く";
+    } else {
+      // レベル2：英単語を見て答える
+      if (questionTextLabel) {
+        questionTextLabel.innerHTML = " <b>&#128064; 英単語を「見て」、正しい日本語を選ぼう。</b>";
+      }
+      enHintEl.textContent = q.en;                     // 英単語を表示
+      audioBtn.textContent = "▶	もう一度音声を聞く";
+    }
+
+    clearChoices();
+
+    // --- 選択肢の表示順だけランダム化（正解位置は保持） ---
+    const indexedChoices = q.choices.map((text, idx) => ({
+      text,
+      index: idx
+    }));
+
+    for (let i = indexedChoices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indexedChoices[i], indexedChoices[j]] = [indexedChoices[j], indexedChoices[i]];
+    }
+
+    // 1問につき最初のクリックだけ有効
+    let answered = false;
+
+    indexedChoices.forEach((choice) => {
+      const btn = document.createElement("button");
+      btn.className = "choice-btn";
+      btn.textContent = choice.text;
+
+      btn.onclick = () => {
+        if (answered) return;
+        answered = true;
+
+        // ★ 答えたタイミングで必ず英単語を表示（レベル1でも）
+        enHintEl.textContent = q.audio_text || q.en;
+
+        const correct = choice.index === q.correctIndex;
+        if (correct) {
+          btn.classList.add("correct");
+          updateResult(q.id, true);
+          playCorrectSound();
+          setTimeout(() => nextQuestion(), 800);
+        } else {
+          btn.classList.add("wrong");
+          updateResult(q.id, false);
+          queue.push(q);
+          alert("不正解… 正しい答えは『" + q.choices[q.correctIndex] + "』です。");
+        }
+      };
+
+      choicesEl.appendChild(btn);
+    });
+
+    noteEl.textContent = q.note ? "メモ：" + q.note : "";
+  }
+
+  function nextQuestion() {
+    index++;
+    if (index >= queue.length) {
+      queue = getTodayQueue(questions);
+      index = 0;
+      alert("今日の分は一周しました。（間違えたものはまた出てきます）");
+    }
+    renderCard();
+  }
+
+  // ============================
+  // 5. ボタン処理
+  // ============================
+  audioBtn.onclick = () => {
+    const q = getCurrent();
+    if (!q) return;
+    if (!("speechSynthesis" in window)) {
+      alert("このブラウザは読み上げに対応していません。");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const text = q.audio_text || q.en;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US";
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    window.speechSynthesis.speak(u);
+  };
+
+  skipBtn.onclick = () => {
+    nextQuestion();
+  };
+
+  nextBtn.onclick = () => {
+    nextQuestion();
+  };
+
+  // ============================
+  // 6. 起動時：シートを読み込む
+  // ============================
+  loadQuestionsFromSheet().catch(err => {
+    console.error(err);
+    noteEl.textContent = "シート読み込みでエラーが起きました。URLや公開設定を確認してください。";
+  });
+</script>
+
+</body>
+</html>
+
+
+
