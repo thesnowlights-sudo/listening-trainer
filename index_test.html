@@ -173,7 +173,9 @@
           en: row.en || "",
           jp: row.jp || "",
           audio_text: row.audio_text || row.en || "",
-          choices: [row.choice1, row.choice2, row.choice3, row.choice4],
+          choices: [id,type,category,level,prompt_jp,prompt_en,en,jp,audio_text,
+choice1,choice2,choice3,choice4,correct,pattern,explanation,note
+],
           correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
           note: row.note || ""
         };
@@ -472,6 +474,7 @@
 
 </body>
 </html>
+
 
 
 
