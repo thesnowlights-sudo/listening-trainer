@@ -152,45 +152,72 @@
   // ★★ スプレッドシートのCSV公開URL ★★
   const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=97402127&single=true&output=csv";
 
-  // 1. スプレッドシートから問題を読み込む
-  let questions = [];
 
-  async function loadQuestionsFromSheet() {
-    const res = await fetch(SHEET_CSV_URL);
-    const csvText = await res.text();
 
-    const parsed = Papa.parse(csvText, {
-      header: true,
-      skipEmptyLines: true
-    });
+// 1. スプレッドシートから問題を読み込む
+let questions = [];
 
-    questions = parsed.data
-      .map((row, idx) => {
-        const correctIdx = Number(row.correct || "1") - 1;
-        return {
-          id: Number(row.id || idx + 1),
-          category: row.category || "",
-          en: row.en || "",
-          jp: row.jp || "",
-          audio_text: row.audio_text || row.en || "",
-          choices: [id,type,category,level,prompt_jp,prompt_en,en,jp,audio_text,
-choice1,choice2,choice3,choice4,correct,pattern,explanation,note
-],
-          correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
-          note: row.note || ""
-        };
-      })
-      .filter(q => q.en && q.jp && q.choices[0]);
+async function loadQuestionsFromSheet() {
+  const res = await fetch(SHEET_CSV_URL);
+  const csvText = await res.text();
 
-    if (questions.length === 0) {
-      alert("シートから問題を読み込めませんでした。ヘッダー名やデータを確認してください。");
-      return;
-    }
+  const parsed = Papa.parse(csvText, {
+    header: true,
+    skipEmptyLines: true
+  });
 
-    queue = getTodayQueue(questions);
-    index = 0;
-    renderCard();
+  questions = parsed.data
+    .map((row, idx) => {
+      const correctIdx = Number(row.correct || "1") - 1;
+
+      return {
+        id: Number(row.id || idx + 1),
+        type: (row.type || "listening").trim(),   // 今はほぼ listening の想定
+        category: row.category || "",
+        level: row.level || "core",
+
+        // 表示用テキスト
+        prompt_jp: row.prompt_jp || "",
+        prompt_en: row.prompt_en || "",
+
+        // リスニング用
+        en: row.en || "",
+        jp: row.jp || "",
+        audio_text: row.audio_text || row.en || "",
+
+        // 選択肢（CSVの列から素直に取る）
+        choices: [
+          row.choice1 || "",
+          row.choice2 || "",
+          row.choice3 || "",
+          row.choice4 || ""
+        ],
+
+        correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
+
+        // そのほか
+        pattern: row.pattern || "",
+        explanation: row.explanation || "",
+        note: row.note || ""
+      };
+    })
+    // ひとまず listening タイプだけを使う（reorderはあとで実装）
+    .filter(q =>
+      q.type === "listening" &&
+      q.en &&
+      q.jp &&
+      q.choices[0]
+    );
+
+  if (questions.length === 0) {
+    alert("シートから問題を読み込めませんでした。ヘッダー名やデータを確認してください。");
+    return;
   }
+
+  queue = getTodayQueue(questions);
+  index = 0;
+  renderCard();
+}
 
   // ============================
   // 2. 進捗管理（SRS）
@@ -474,6 +501,7 @@ choice1,choice2,choice3,choice4,correct,pattern,explanation,note
 
 </body>
 </html>
+
 
 
 
