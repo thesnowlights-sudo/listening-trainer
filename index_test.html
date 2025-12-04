@@ -158,66 +158,82 @@
 let questions = [];
 
 async function loadQuestionsFromSheet() {
-  const res = await fetch(SHEET_CSV_URL);
-  const csvText = await res.text();
+  try {
+    const res = await fetch(SHEET_CSV_URL);
+    if (!res.ok) {
+      throw new Error("HTTPエラー: " + res.status);
+    }
 
-  const parsed = Papa.parse(csvText, {
-    header: true,
-    skipEmptyLines: true
-  });
+    const csvText = await res.text();
 
-  questions = parsed.data
-    .map((row, idx) => {
-      const correctIdx = Number(row.correct || "1") - 1;
+    const parsed = Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true
+    });
 
-      return {
-        id: Number(row.id || idx + 1),
-        type: (row.type || "listening").trim(),   // 今はほぼ listening の想定
-        category: row.category || "",
-        level: row.level || "core",
+    // 解析エラーがあればメモに出す
+    if (parsed.errors && parsed.errors.length > 0) {
+      noteEl.textContent =
+        "CSV解析エラー: " + parsed.errors[0].message;
+      console.log(parsed.errors);
+    }
 
-        // 表示用テキスト
-        prompt_jp: row.prompt_jp || "",
-        prompt_en: row.prompt_en || "",
+    // デバッグ表示：読み込んだ行数
+    console.log("rows:", parsed.data.length);
+    noteEl.textContent = "読み込んだ行数: " + parsed.data.length + " 行";
 
-        // リスニング用
-        en: row.en || "",
-        jp: row.jp || "",
-        audio_text: row.audio_text || row.en || "",
+    questions = parsed.data
+      .map((row, idx) => {
+        const correctIdx = Number(row.correct || "1") - 1;
 
-        // 選択肢（CSVの列から素直に取る）
-        choices: [
-          row.choice1 || "",
-          row.choice2 || "",
-          row.choice3 || "",
-          row.choice4 || ""
-        ],
+        return {
+          id: Number(row.id || idx + 1),
+          type: (row.type || "listening").trim(),
+          category: row.category || "",
+          level: row.level || "core",
+          prompt_jp: row.prompt_jp || "",
+          prompt_en: row.prompt_en || "",
+          en: row.en || "",
+          jp: row.jp || "",
+          audio_text: row.audio_text || row.en || "",
+          choices: [
+            row.choice1 || "",
+            row.choice2 || "",
+            row.choice3 || "",
+            row.choice4 || ""
+          ],
+          correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
+          pattern: row.pattern || "",
+          explanation: row.explanation || "",
+          note: row.note || ""
+        };
+      })
+      // まずは listening だけ
+      .filter(q =>
+        q.type === "listening" &&
+        q.en &&
+        q.jp &&
+        q.choices[0]
+      );
 
-        correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
+    if (questions.length === 0) {
+      noteEl.textContent =
+        "データは読み込めましたが、有効な問題が0件です。ヘッダー名や en/jp/choice1 などを確認してください。";
+      return;
+    }
 
-        // そのほか
-        pattern: row.pattern || "",
-        explanation: row.explanation || "",
-        note: row.note || ""
-      };
-    })
-    // ひとまず listening タイプだけを使う（reorderはあとで実装）
-    .filter(q =>
-      q.type === "listening" &&
-      q.en &&
-      q.jp &&
-      q.choices[0]
-    );
-
-  if (questions.length === 0) {
-    alert("シートから問題を読み込めませんでした。ヘッダー名やデータを確認してください。");
-    return;
+    queue = getTodayQueue(questions);
+    index = 0;
+    renderCard();
+  } catch (err) {
+    console.error(err);
+    noteEl.textContent =
+      "シート読み込みエラー: " + err.message;
   }
-
-  queue = getTodayQueue(questions);
-  index = 0;
-  renderCard();
 }
+
+// 末尾の呼び出し部分（これも一応シンプルに）
+loadQuestionsFromSheet();
 
   // ============================
   // 2. 進捗管理（SRS）
@@ -501,6 +517,7 @@ async function loadQuestionsFromSheet() {
 
 </body>
 </html>
+
 
 
 
