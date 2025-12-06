@@ -539,6 +539,15 @@
       choicesEl.innerHTML = "";
     }
 
+// ★★★ ここに追加する ★★★
+function getQuestionMode(q) {
+  const cat = (q.category || "");
+  if (cat.includes("並べ替え"))   return "reorder";
+  if (cat.includes("最重要表現")) return "phrase";
+  return "listening";
+}
+// ★★★★★★★★★★★★★★★★★★
+    
     function renderCard() {
       const q = getCurrent();
       if (!q) {
@@ -548,91 +557,91 @@
           "出題できる問題がありません。シートのデータを確認してください。";
         return;
       }
-      renderHeader();
+    renderHeader();
 
-      const isReorder = q.category === "並べ替え";
+clearChoices();
 
-      clearChoices();
+// 問題タイプ＆ステージを判定
+const mode  = getQuestionMode(q);
+const stage = getStageForQuestion(q);
 
-      if (isReorder) {
-        // ▼ 並べ替え問題：読む問題として扱う
-        questionTextLabel.innerHTML =
-          "📚 <b>英文を読んで、正しい選択肢を選ぼう。</b>";
-        enHintEl.textContent = q.prompt_jp || q.en || "";
-        audioBtn.textContent = "▶ 問題文を聞く";
-      } else {
-        // ▼ リスニング系（数字・場所・最重要表現など）
-        const stage = getStageForQuestion(q);
+// ------- 表示の切り替え --------
+if (mode === "reorder") {
+  // ▼ 並べ替え問題：読む問題として扱う
+  questionTextLabel.innerHTML =
+    "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
+  // 並べ替えは英文そのものを見せたいので en を表示
+  enHintEl.textContent = q.en || q.prompt_jp || "";
+  audioBtn.textContent = "▶ 英文を読み上げる";
 
-        if (stage === 1) {
-          questionTextLabel.innerHTML =
-            "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
-          enHintEl.textContent = "";           // 英単語は隠す
-          audioBtn.textContent = "▶ 音声を聞く";
-        } else {
-          questionTextLabel.innerHTML =
-            "👀 <b>英単語を「見て」、正しい日本語を選ぼう。</b>";
-          enHintEl.textContent = q.en;         // 英単語を表示
-          audioBtn.textContent = "▶ もう一度音声を聞く";
-        }
-      }
+} else if (mode === "phrase") {
+  // ▼ 最重要表現：フレーズ問題
+  questionTextLabel.innerHTML =
+    "📘 <b>フレーズを読んで、正しい意味を選ぼう。</b>";
+  enHintEl.textContent = q.en || "";
+  audioBtn.textContent = "▶ フレーズを読み上げる";
 
-      // --- 選択肢の表示順だけランダム化 ---
-      const indexedChoices = q.choices.map((text, idx) => ({
-        text,
-        index: idx
-      }));
+} else {
+  // ▼ リスニング系（数字・場所・動詞 など）
+  if (stage === 1) {
+    questionTextLabel.innerHTML =
+      "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
+    enHintEl.textContent = "";           // ステップ1は英単語を隠す
+    audioBtn.textContent = "▶ 音声を聞く";
+  } else {
+    questionTextLabel.innerHTML =
+      "👀 <b>英単語を「見て」、正しい日本語を選ぼう。</b>";
+    enHintEl.textContent = q.en;         // ステップ2は英単語を表示
+    audioBtn.textContent = "▶ もう一度音声を聞く";
+  }
+}
 
-      for (let i = indexedChoices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [indexedChoices[i], indexedChoices[j]] =
-          [indexedChoices[j], indexedChoices[i]];
-      }
+// --- 選択肢の表示順だけランダム化 ---
+const indexedChoices = q.choices.map((text, idx) => ({
+  text,
+  index: idx
+}));
 
-      let answered = false;
+for (let i = indexedChoices.length - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [indexedChoices[i], indexedChoices[j]] =
+    [indexedChoices[j], indexedChoices[i]];
+}
 
-      indexedChoices.forEach(choice => {
-        const btn = document.createElement("button");
-        btn.className = "choice-btn";
-        btn.textContent = choice.text;
+let answered = false;
 
-        btn.onclick = () => {
-          if (answered) return;
-          answered = true;
+indexedChoices.forEach(choice => {
+  const btn = document.createElement("button");
+  btn.className = "choice-btn";
+  btn.textContent = choice.text;
 
-          // 答えたら単語 or 問題文を表示
-          enHintEl.textContent = q.audio_text || q.en || q.prompt_jp || "";
+  btn.onclick = () => {
+    if (answered) return;
+    answered = true;
 
-          const correct = choice.index === q.correctIndex;
-          if (correct) {
-            btn.classList.add("correct");
-            updateResult(q.id, true);
-            playCorrectSound();
-            setTimeout(() => nextQuestion(), 800);
-          } else {
-            btn.classList.add("wrong");
-            updateResult(q.id, false);
-            queue.push(q); // 今日の最後にもう一度
-            alert("不正解… 正しい答えは『" + q.choices[q.correctIndex] + "』です。");
-          }
-          // 回答したのでヘッダーも更新（通算解答数）
-          renderHeader();
-        };
+    // 答えたら単語 or 問題文を表示
+    enHintEl.textContent = q.audio_text || q.en || q.prompt_jp || "";
 
-        choicesEl.appendChild(btn);
-      });
-
-      noteEl.textContent = q.note ? "メモ：" + q.note : "";
+    const correct = choice.index === q.correctIndex;
+    if (correct) {
+      btn.classList.add("correct");
+      updateResult(q.id, true);
+      playCorrectSound();
+      setTimeout(() => nextQuestion(), 800);
+    } else {
+      btn.classList.add("wrong");
+      updateResult(q.id, false);
+      queue.push(q); // 今日の最後にもう一度
+      alert("不正解… 正しい答えは『" + q.choices[q.correctIndex] + "』です。");
     }
+    // 回答したのでヘッダーも更新（通算解答数）
+    renderHeader();
+  };
 
-    function nextQuestion() {
-      index++;
-      if (index >= queue.length) {
-        queue = getTodayQueue(questions);
-        index = 0;
-        alert("今日の分は一周しました。（間違えたものはまた出てきます）");
-      }
-      renderCard();
+  choicesEl.appendChild(btn);
+});
+
+noteEl.textContent = q.note ? "メモ：" + q.note : "";
     }
 
     // ============================
@@ -674,3 +683,4 @@
   </script>
 </body>
 </html>
+
