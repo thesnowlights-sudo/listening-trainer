@@ -640,43 +640,57 @@
       noteEl.textContent = q.note ? "メモ：" + q.note : "";
     }
 
-    function nextQuestion() {
-      index++;
-      if (index >= queue.length) {
-        queue = getTodayQueue(questions);
-        index = 0;
-        alert("今日の分は一周しました。（間違えたものはまた出てきます）");
-      }
-      renderCard();
-    }
+function nextQuestion() {
+  index++;
+  if (index >= queue.length) {
+    queue = getTodayQueue(questions);
+    index = 0;
+    alert("今日の分は一周しました。（間違えたものはまた出てきます）");
+  }
+  renderCard();
+}
+ }
 
-    // ============================
-    // 6. ボタン処理
-    // ============================
-    audioBtn.onclick = () => {
-      const q = getCurrent();
-      if (!q) return;
-      if (!("speechSynthesis" in window)) {
-        alert("このブラウザは読み上げに対応していません。");
-        return;
-      }
-      window.speechSynthesis.cancel();
-      const text = q.audio_text || q.en || q.prompt_jp || "";
-      if (!text) return;
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "en-US";
-      u.rate = 1.0;
-      u.pitch = 1.0;
-      window.speechSynthesis.speak(u);
-    };
+  // ============================
+// 6. ボタン処理
+// ============================
+audioBtn.onclick = () => {
+  const q = getCurrent();
+  if (!q) return;
+  if (!("speechSynthesis" in window)) {
+    alert("このブラウザは読み上げに対応していません。");
+    return;
+  }
+  // 既にしゃべっていたら止める
+  window.speechSynthesis.cancel();
 
-    skipBtn.onclick = () => {
-      nextQuestion();
-    };
+  // 読み上げる本文（英文を優先）
+  const text = q.audio_text || q.en || q.prompt_jp || "";
+  if (!text) return;
 
-    nextBtn.onclick = () => {
-      nextQuestion();
-    };
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US";
+  u.rate = 1.0;
+  u.pitch = 1.0;
+  window.speechSynthesis.speak(u);
+};
+
+// ★ スキップ：必ず nextQuestion() を呼ぶだけ
+skipBtn.onclick = () => {
+  // 読み上げ中なら止める
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+  nextQuestion();
+};
+
+// ★ 次へ進む：同じく nextQuestion() を呼ぶ
+nextBtn.onclick = () => {
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+  nextQuestion();
+};
 
     // ============================
     // 7. 起動時：シートを読み込む
@@ -689,3 +703,4 @@
   </script>
 </body>
 </html>
+
