@@ -193,33 +193,36 @@
 
         const rawRows = parsed.data.length;
 
-        questions = parsed.data
-          .map((row, idx) => {
-            const correctIdx = Number(row.correct || "1") - 1;
-            return {
-              id: Number(row.id || idx + 1),
-              type: (row.type || "").trim(),
-              category: row.category || "",
-              // level は使わない
-              prompt_jp: row.prompt_jp || "",
-              prompt_en: row.prompt_en || "",
-              en: row.en || "",
-              jp: row.jp || "",
-              audio_text: row.audio_text || row.en || "",
-              choices: [
-                row.choice1 || "",
-                row.choice2 || "",
-                row.choice3 || "",
-                row.choice4 || ""
-              ],
-              correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
-              pattern: row.pattern || "",
-              explanation: row.explanation || "",
-              note: row.note || ""
-            };
-          })
-          // 最低限 en/jp/choice1 があるものだけ対象
-          .filter(q => q.en && q.jp && q.choices[0]);
+      questions = parsed.data
+  .map((row, idx) => {
+    const correctIdx = Number(row.correct || "1") - 1;
+    return {
+      id: Number(row.id || idx + 1),
+      type: (row.type || "").trim(),
+      category: row.category || "",
+      // level はもう使わないので削ってOK
+      prompt_jp: row.prompt_jp || "",
+      prompt_en: row.prompt_en || "",
+      en: row.en || "",
+      jp: row.jp || "",
+      audio_text: row.audio_text || row.en || "",
+      choices: [
+        row.choice1 || "",
+        row.choice2 || "",
+        row.choice3 || "",
+        row.choice4 || ""
+      ],
+      correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
+      pattern: row.pattern || "",
+      explanation: row.explanation || "",
+      note: row.note || ""
+    };
+  })
+  // ★ 最低限「id がある & choice1 がある」だけ見る
+  .filter(q =>
+    q.id && q.choices[0]
+  );
+
 
         const coreCount  = questions.filter(q => isCore(q)).length;
         const extraCount = questions.filter(q => !isCore(q)).length;
@@ -601,3 +604,4 @@
   </script>
 </body>
 </html>
+
