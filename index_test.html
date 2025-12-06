@@ -191,7 +191,7 @@
 
   // 経過日数ごとの core / extra 比率（0〜1）
   const PHASES = [
-    { maxDay: 4,   coreRatio: 0.9 }, // 0〜4日目: core 9割
+    { maxDay: 4,   coreRatio: 9.0 }, // 0〜4日目: core 9割
     { maxDay: 9,   coreRatio: 0.6 }, // 5〜9日目: core 6割
     { maxDay: 999, coreRatio: 0.3 }  // 10日目〜: core 3割（extra多め）
   ];
@@ -650,5 +650,6 @@
   </script>
 </body>
 </html>
+
 
 
