@@ -49,6 +49,7 @@
       font-weight: bold;
       color: #1565c0;
       margin-bottom: 4px;
+      min-height: 1.5em;
     }
     .note {
       font-size: 0.75rem;
@@ -127,7 +128,7 @@
 
     <div class="card">
       <div class="question-text" id="questionTextLabel">
-        &#128538; <b>音声を聞いて、正しい日本語を選ぼう。</b>
+        🧠 <b>音声を聞いて、正しい日本語を選ぼう。</b>
       </div>
 
       <div class="main-en" id="enHint"></div>
@@ -145,6 +146,8 @@
       <div class="status" id="dateInfo"></div>
       <div class="status" id="queueInfo"></div>
       <div class="status" id="wordInfo"></div>
+      <!-- 通算解答数 -->
+      <div class="status" id="totalInfo"></div>
 
       <!-- デバッグ用 -->
       <div class="debug-block" id="debugInfo"></div>
@@ -154,7 +157,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
-    // ★★ スプレッドシートのCSV公開URL ★★
+    // ▼ スプレッドシートのCSV公開URL
     const SHEET_CSV_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=97402127&single=true&output=csv";
 
@@ -178,11 +181,11 @@
       return PHASES[PHASES.length - 1];
     }
 
+    let questions = [];
+
     // ============================
     // 1. スプレッドシートから問題を読み込む
     // ============================
-    let questions = [];
-
     async function loadQuestionsFromSheet() {
       try {
         const res = await fetch(SHEET_CSV_URL);
@@ -202,34 +205,49 @@
 
         const rawRows = parsed.data.length;
 
-        // 行→内部オブジェクト
         questions = parsed.data
           .map((row, idx) => {
-            const correctIdx = Number(row.correct || "1") - 1;
+            const id = Number(row.id || idx + 1);
+
+            // 空でない選択肢だけを使う
+            let choices = [
+              row.choice1,
+              row.choice2,
+              row.choice3,
+              row.choice4
+            ].filter(v => v && String(v).trim() !== "");
+
+            // もし choice が1つも無い場合は jp を選択肢として使う（保険）
+            if (choices.length === 0 && row.jp) {
+              choices = [row.jp];
+            }
+
+            // correct は 1 始まり
+            const rawCorrect = Number(row.correct);
+            let correctIndex = 0;
+            if (!Number.isNaN(rawCorrect) && rawCorrect > 0 && rawCorrect <= choices.length) {
+              correctIndex = rawCorrect - 1;
+            }
+
             return {
-              id: Number(row.id || idx + 1),
-              type: (row.type || "").trim(),
+              id,
               category: row.category || "",
-              // level は使わない
               prompt_jp: row.prompt_jp || "",
-              prompt_en: row.prompt_en || "",
-              en: row.en || "",
+              en: row.en || row.prompt_en || "",
               jp: row.jp || "",
-              audio_text: row.audio_text || row.en || row.prompt_en || row.prompt_jp || "",
-              choices: [
-                row.choice1 || "",
-                row.choice2 || "",
-                row.choice3 || "",
-                row.choice4 || ""
-              ],
-              correctIndex: isNaN(correctIdx) ? 0 : correctIdx,
-              pattern: row.pattern || "",
-              explanation: row.explanation || "",
+              audio_text:
+                row.audio_text ||
+                row.en ||
+                row.prompt_en ||
+                row.prompt_jp ||
+                "",
+              choices,
+              correctIndex,
               note: row.note || ""
             };
           })
-          // ★ 必須なのは「id がある」と「選択肢1がある」だけ
-          .filter(q => q.id && q.choices[0]);
+          // id と choices があるものだけ対象
+          .filter(q => q.id && q.choices.length > 0);
 
         const coreCount  = questions.filter(q => isCore(q)).length;
         const extraCount = questions.filter(q => !isCore(q)).length;
@@ -239,7 +257,6 @@
         console.log("core (id<=75):", coreCount);
         console.log("extra (id>=76):", extraCount);
 
-        // 画面用デバッグ表示
         debugInfoEl.textContent =
           `CSV行数:${rawRows} / 有効:${questions.length} (core:${coreCount}, extra:${extraCount})`;
         debugIdsEl.textContent =
@@ -248,11 +265,11 @@
 
         if (questions.length === 0) {
           noteEl.textContent =
-            "データは読み込めましたが、有効な問題が0件です。ヘッダー名や id / choice1 などを確認してください。";
+            "データは読み込めましたが、有効な問題が0件です。";
           return;
         }
 
-        // ★ここで extra だけテストしたいとき用（終わったら false に戻す）
+        // ▼ extraだけテストしたい時は true に
         const DEBUG_EXTRA_ONLY = false;
         if (DEBUG_EXTRA_ONLY) {
           questions = questions.filter(q => !isCore(q));
@@ -276,7 +293,6 @@
     const progressKey  = "saitama_trainer_progress_v3";
     const startDateKey = "saitama_trainer_startDate_v3";
 
-    // box=0,1,2,3 に対する復習間隔（日）
     const intervals = [1, 2, 5, 999];
 
     function todayStr() {
@@ -335,6 +351,17 @@
       return Math.floor(diffMs / (1000 * 60 * 60 * 24)); // 0,1,2...
     }
 
+    // これまでの通算解答数（正解＋不正解の合計）
+    function getTotalAnswers() {
+      const prog = loadProgress();
+      let total = 0;
+      for (const id in prog) {
+        const p = prog[id];
+        total += (p.correct || 0) + (p.wrong || 0);
+      }
+      return total;
+    }
+
     // ============================
     // 3. 今日の出題キュー
     // ============================
@@ -374,7 +401,6 @@
         } else if (!p) {
           (core ? freshCore : freshExtra).push(q); // 初出題
         }
-        // それ以外（nextDue > today）は今日は出さない
       }
 
       shuffle(due);
@@ -454,15 +480,15 @@
     let queue = [];
     let index = 0;
 
-    const dateInfoEl = document.getElementById("dateInfo");
-    const queueInfoEl = document.getElementById("queueInfo");
-    const wordInfoEl  = document.getElementById("wordInfo");
-    const debugInfoEl = document.getElementById("debugInfo");
-    const debugIdsEl  = document.getElementById("debugIds");
-
-    const enHintEl = document.getElementById("enHint");
-    const choicesEl = document.getElementById("choices");
-    const noteEl = document.getElementById("note");
+    const dateInfoEl   = document.getElementById("dateInfo");
+    const queueInfoEl  = document.getElementById("queueInfo");
+    const wordInfoEl   = document.getElementById("wordInfo");
+    const totalInfoEl  = document.getElementById("totalInfo");
+    const debugInfoEl  = document.getElementById("debugInfo");
+    const debugIdsEl   = document.getElementById("debugIds");
+    const enHintEl     = document.getElementById("enHint");
+    const choicesEl    = document.getElementById("choices");
+    const noteEl       = document.getElementById("note");
     const questionTextLabel = document.getElementById("questionTextLabel");
 
     const audioBtn = document.getElementById("audioBtn");
@@ -474,7 +500,7 @@
       return queue[index];
     }
 
-    // レベル判定：box>=3 でステップ2
+    // レベル判定：box>=3 でステップ2（リスニング系だけで使用）
     function getStageForQuestion(q) {
       const prog = loadProgress();
       const p = prog[q.id];
@@ -492,6 +518,7 @@
       const q = getCurrent();
       if (!q) {
         wordInfoEl.textContent = "";
+        totalInfoEl.textContent = "これまでの通算解答数：0 回";
         return;
       }
       const p = prog[q.id];
@@ -503,6 +530,9 @@
           `ID:${q.id}　カテゴリ:${q.category || ""}　` +
           `正解:${p.correct || 0} / ミス:${p.wrong || 0} / 次回:${p.nextDue}`;
       }
+
+      const total = getTotalAnswers();
+      totalInfoEl.textContent = "これまでの通算解答数：" + total + " 回";
     }
 
     function clearChoices() {
@@ -520,22 +550,34 @@
       }
       renderHeader();
 
-      const stage = getStageForQuestion(q);
-
-      if (stage === 1) {
-        questionTextLabel.innerHTML =
-          "<b>&#128066; 音声を「聞いて」、正しい日本語を選ぼう。</b>";
-        enHintEl.textContent = "";
-        audioBtn.textContent = "▶ 音声を聞く";
-      } else {
-        questionTextLabel.innerHTML =
-          "<b>&#128064; 英単語を「見て」、正しい日本語を選ぼう。</b>";
-        enHintEl.textContent = q.en;
-        audioBtn.textContent = "▶ もう一度音声を聞く";
-      }
+      const isReorder = q.category === "並べ替え";
 
       clearChoices();
 
+      if (isReorder) {
+        // ▼ 並べ替え問題：読む問題として扱う
+        questionTextLabel.innerHTML =
+          "📚 <b>英文を読んで、正しい選択肢を選ぼう。</b>";
+        enHintEl.textContent = q.prompt_jp || q.en || "";
+        audioBtn.textContent = "▶ 問題文を聞く";
+      } else {
+        // ▼ リスニング系（数字・場所・最重要表現など）
+        const stage = getStageForQuestion(q);
+
+        if (stage === 1) {
+          questionTextLabel.innerHTML =
+            "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
+          enHintEl.textContent = "";           // 英単語は隠す
+          audioBtn.textContent = "▶ 音声を聞く";
+        } else {
+          questionTextLabel.innerHTML =
+            "👀 <b>英単語を「見て」、正しい日本語を選ぼう。</b>";
+          enHintEl.textContent = q.en;         // 英単語を表示
+          audioBtn.textContent = "▶ もう一度音声を聞く";
+        }
+      }
+
+      // --- 選択肢の表示順だけランダム化 ---
       const indexedChoices = q.choices.map((text, idx) => ({
         text,
         index: idx
@@ -558,8 +600,8 @@
           if (answered) return;
           answered = true;
 
-          // 答えたら単語を表示（レベル1でも）
-          enHintEl.textContent = q.audio_text || q.en;
+          // 答えたら単語 or 問題文を表示
+          enHintEl.textContent = q.audio_text || q.en || q.prompt_jp || "";
 
           const correct = choice.index === q.correctIndex;
           if (correct) {
@@ -573,6 +615,8 @@
             queue.push(q); // 今日の最後にもう一度
             alert("不正解… 正しい答えは『" + q.choices[q.correctIndex] + "』です。");
           }
+          // 回答したのでヘッダーも更新（通算解答数）
+          renderHeader();
         };
 
         choicesEl.appendChild(btn);
@@ -602,7 +646,8 @@
         return;
       }
       window.speechSynthesis.cancel();
-      const text = q.audio_text || q.en;
+      const text = q.audio_text || q.en || q.prompt_jp || "";
+      if (!text) return;
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "en-US";
       u.rate = 1.0;
