@@ -158,7 +158,7 @@
  
 <script>
   // ============================
-  // 0. DOM 取得
+  // 0. DOM取得
   // ============================
   const questionTextLabel = document.getElementById("questionTextLabel");
   const enHintEl          = document.getElementById("enHint");
@@ -179,41 +179,41 @@
   // 1. 基本設定
   // ============================
 
-  // ▼ スプレッドシートのCSV公開URL（元のまま貼り直してください）
+  // ★ここを書き換えてください（スプレッドシートを「ウェブに公開 → CSV」のURL）
   const SHEET_CSV_URL =
-    "ここにあなたの Google スプレッドシートの CSV URL を入れる";
+    "https://docs.google.com/spreadsheets/d/xxxxxxxxxxxxxxxxxxxx/export?format=csv";
 
-  // 1日の出題数
+  // 1日の出題数（固定）
   const DAILY_TARGET = 15;
 
-// id ベースで core / extra を判定（1〜75: core, 76〜: extra）
-const isCore = q => q.id <= 75;
+  // id ベースで core / extra を判定（1〜75: core, 76〜: extra）
+  const isCore = (q) => q.id <= 75;
 
-// 経過日数ごとの core / extra 比率（0〜1）
-// ※最初の4日間は core のみ（extra 0％）
-const PHASES = [
-  { maxDay: 4,   coreRatio: 0.0 }, // 0〜4日目: core 100%
-  { maxDay: 9,   coreRatio: 0.6 }, // 5〜9日目: core 60% / extra 40%
-  { maxDay: 999, coreRatio: 0.3 }  // 10日目〜: core 30% / extra 70%
-];
+  // 経過日数ごとの core / extra 比率（0〜1）
+  const PHASES = [
+    { maxDay: 4,   coreRatio: 1.0 }, // 0〜4日目: core 100%
+    { maxDay: 9,   coreRatio: 0.6 }, // 5〜9日目: core 60%
+    { maxDay: 999, coreRatio: 0.3 }, // 10日目〜: core 30%
+  ];
 
-function getPhase(days) {
-  for (const p of PHASES) {
-    if (days <= p.maxDay) return p;
+  function getPhase(days) {
+    for (const p of PHASES) {
+      if (days <= p.maxDay) return p;
+    }
+    return PHASES[PHASES.length - 1];
   }
-  return PHASES[PHASES.length - 1];
-}
 
-
-  const intervals = [1, 2, 5, 999]; // boxごとの間隔（日）
+  // boxごとのインターバル（日）
+  const intervals = [1, 2, 5, 999];
 
   let questions = [];
   let queue     = [];
   let index     = 0;
 
   // ============================
-  // 2. 日付＆進捗
+  // 2. 日付・進捗
   // ============================
+
   const progressKey  = "saitama_trainer_progress_v4";
   const startDateKey = "saitama_trainer_startDate_v4";
 
@@ -265,24 +265,19 @@ function getPhase(days) {
   }
 
   // ============================
-  // 3. 問題読み込み
+  // 3. CSV読み込み
   // ============================
+
   async function loadQuestionsFromSheet() {
     try {
       const res = await fetch(SHEET_CSV_URL);
       if (!res.ok) throw new Error("HTTPエラー: " + res.status);
-
       const csvText = await res.text();
 
       const parsed = Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true
       });
-
-      if (parsed.errors && parsed.errors.length > 0) {
-        noteEl.textContent = "CSV解析エラー: " + parsed.errors[0].message;
-        console.log(parsed.errors);
-      }
 
       const rawRows = parsed.data.length;
 
@@ -294,8 +289,8 @@ function getPhase(days) {
             row.choice1,
             row.choice2,
             row.choice3,
-            row.choice4
-          ].filter(v => v && String(v).trim() !== "");
+            row.choice4,
+          ].filter((v) => v && String(v).trim() !== "");
 
           if (choices.length === 0 && row.jp) {
             choices = [row.jp];
@@ -303,15 +298,17 @@ function getPhase(days) {
 
           const rawCorrect = Number(row.correct);
           let correctIndex = 0;
-          if (!Number.isNaN(rawCorrect) &&
-              rawCorrect > 0 &&
-              rawCorrect <= choices.length) {
+          if (
+            !Number.isNaN(rawCorrect) &&
+            rawCorrect > 0 &&
+            rawCorrect <= choices.length
+          ) {
             correctIndex = rawCorrect - 1;
           }
 
           return {
             id,
-            type: (row.type || "").trim(),  // ★ CSVのtype列をそのまま使う
+            type: (row.type || "").trim(),
             category: row.category || "",
             level: row.level || "",
             prompt_jp: row.prompt_jp || "",
@@ -326,19 +323,19 @@ function getPhase(days) {
               "",
             choices,
             correctIndex,
-            note: row.note || ""
+            note: row.note || "",
           };
         })
-        .filter(q => q.id && q.choices.length > 0);
+        .filter((q) => q.id && q.choices.length > 0);
 
-      const coreCount  = questions.filter(q => isCore(q)).length;
-      const extraCount = questions.filter(q => !isCore(q)).length;
+      const coreCount  = questions.filter((q) => isCore(q)).length;
+      const extraCount = questions.filter((q) => !isCore(q)).length;
 
       debugInfoEl.textContent =
         `CSV行数:${rawRows} / 有効:${questions.length} (core:${coreCount}, extra:${extraCount})`;
       debugIdsEl.textContent =
         "ID一覧(先頭30): " +
-        questions.map(q => q.id).slice(0, 30).join(", ");
+        questions.map((q) => q.id).slice(0, 30).join(", ");
 
       if (questions.length === 0) {
         noteEl.textContent =
@@ -351,13 +348,12 @@ function getPhase(days) {
       renderCard();
     } catch (err) {
       console.error(err);
-      noteEl.textContent =
-        "シート読み込みエラー: " + err.message;
+      noteEl.textContent = "シート読み込みエラー: " + err.message;
     }
   }
 
   // ============================
-  // 4. SRSキュー作成
+  // 4. SRSキュー作成（ここが今回の修正版）
   // ============================
 
   function shuffle(arr) {
@@ -367,114 +363,72 @@ function getPhase(days) {
     }
   }
 
-function getTodayQueue(allQuestions) {
-  const prog   = loadProgress();
-  const today  = todayStr();
-  const days   = getElapsedDays();
-  const phase  = getPhase(days);
-  const target = DAILY_TARGET; // 1日の目標数（今回は15）
+  function getTodayQueue(allQuestions) {
+    const prog   = loadProgress();
+    const today  = todayStr();
+    const days   = getElapsedDays();
+    const phase  = getPhase(days);
+    const target = DAILY_TARGET;
 
-  const coreDue    = [];
-  const extraDue   = [];
-  const coreFresh  = [];
-  const extraFresh = [];
+    const coreDue    = [];
+    const extraDue   = [];
+    const coreFresh  = [];
+    const extraFresh = [];
 
-  // 1. due / fresh & core / extra に分ける
-  for (const q of allQuestions) {
-    const p    = prog[q.id];
-    const core = isCore(q);
+    // due / fresh を core/extra で分類
+    for (const q of allQuestions) {
+      const p    = prog[q.id];
+      const core = isCore(q);
 
-    if (p && p.nextDue && p.nextDue <= today) {
-      // 期限到来（復習）
-      (core ? coreDue : extraDue).push(q);
-    } else if (!p) {
-      // まだ一度も出題していない
-      (core ? coreFresh : extraFresh).push(q);
-    }
-    // それ以外（次回出題日が未来）は今日は出さない
-  }
-
-  // 2. シャッフルして順序をランダムに
-  shuffle(coreDue);
-  shuffle(extraDue);
-  shuffle(coreFresh);
-  shuffle(extraFresh);
-
-  const result = [];
-
-  // 3. 今日の core / extra の目標数を決める
-  const targetCore  = Math.round(target * phase.coreRatio);
-  const targetExtra = target - targetCore;
-
-  // helper: 指定の配列から最大limitまでresultに追加
-  function takeFrom(arr, limit) {
-    while (limit > 0 && result.length < target && arr.length > 0) {
-      result.push(arr.shift());
-      limit--;
-    }
-    return limit;
-  }
-
-  // 4. まず core 枠を埋める（dues 優先 → fresh）
-  let needCore = targetCore;
-  needCore = takeFrom(coreDue, needCore);
-  needCore = takeFrom(coreFresh, needCore);
-
-  // 5. 次に extra 枠を埋める（dues 優先 → fresh）
-  let needExtra = targetExtra;
-  needExtra = takeFrom(extraDue, needExtra);
-  needExtra = takeFrom(extraFresh, needExtra);
-
-  // 6. まだ足りない場合は、残っているものから何でも入れる（core/extra問わず）
-  while (result.length < target) {
-    const pools = [coreDue, extraDue, coreFresh, extraFresh];
-    const nonEmpty = pools.filter(a => a.length > 0);
-    if (nonEmpty.length === 0) break; // もう入れる問題がない
-
-    const arr = nonEmpty[0];
-    result.push(arr.shift());
-  }
-
-  // 7. 安全のため、万一 target を超えたら切り捨てる
-  if (result.length > target) {
-    shuffle(result);
-    return result.slice(0, target);
-  }
-
-  shuffle(result);
-  return result;
-}
-
-    shuffle(dueCore);
-    shuffle(dueExtra);
-    shuffle(freshCore);
-    shuffle(freshExtra);
-
-    let result = [];
-
-    // 1. 期限到来分は必ず入れる
-    const allDue = dueCore.concat(dueExtra);
-    result = result.concat(allDue);
-
-    let remaining = DAILY_TARGET - result.length;
-    if (remaining > 0) {
-      const targetCore = Math.round(remaining * phase.coreRatio);
-      const addCore  = Math.min(targetCore, freshCore.length);
-      const addExtra = Math.min(remaining - addCore, freshExtra.length);
-
-      result = result.concat(freshCore.slice(0, addCore));
-      result = result.concat(freshExtra.slice(0, addExtra));
-      remaining = DAILY_TARGET - result.length;
-    }
-
-    if (remaining > 0) {
-      const used = new Set(result.map(q => q.id));
-      const rest = allQuestions.filter(q => !used.has(q.id));
-      shuffle(rest);
-      for (const q of rest) {
-        if (result.length >= DAILY_TARGET) break;
-        result.push(q);
+      if (p && p.nextDue && p.nextDue <= today) {
+        (core ? coreDue : extraDue).push(q);       // 期限到来
+      } else if (!p) {
+        (core ? coreFresh : extraFresh).push(q);   // 初出題
       }
+      // nextDue が未来のものは今日は出さない
+    }
+
+    shuffle(coreDue);
+    shuffle(extraDue);
+    shuffle(coreFresh);
+    shuffle(extraFresh);
+
+    const result = [];
+
+    const targetCore  = Math.round(target * phase.coreRatio);
+    const targetExtra = target - targetCore;
+
+    function takeFrom(arr, limit) {
+      while (limit > 0 && result.length < target && arr.length > 0) {
+        result.push(arr.shift());
+        limit--;
+      }
+      return limit;
+    }
+
+    // 1. core 枠
+    let needCore = targetCore;
+    needCore = takeFrom(coreDue, needCore);
+    needCore = takeFrom(coreFresh, needCore);
+
+    // 2. extra 枠
+    let needExtra = targetExtra;
+    needExtra = takeFrom(extraDue, needExtra);
+    needExtra = takeFrom(extraFresh, needExtra);
+
+    // 3. まだ足りなければ残りからなんでも
+    while (result.length < target) {
+      const pools = [coreDue, extraDue, coreFresh, extraFresh];
+      const nonEmpty = pools.filter((a) => a.length > 0);
+      if (nonEmpty.length === 0) break;
+      const arr = nonEmpty[0];
+      result.push(arr.shift());
+    }
+
+    // 4. 念のため target を超えたら切る
+    if (result.length > target) {
+      shuffle(result);
+      return result.slice(0, target);
     }
 
     shuffle(result);
@@ -488,7 +442,6 @@ function getTodayQueue(allQuestions) {
 
   function getStageForQuestion(q) {
     if (q.type !== "listen_en_to_jp") return 2;
-
     const prog = loadProgress();
     const p = prog[q.id];
     const correctCount = p ? (p.correct || 0) : 0;
@@ -496,7 +449,7 @@ function getTodayQueue(allQuestions) {
   }
 
   // ============================
-  // 5. 表示系
+  // 5. 表示
   // ============================
 
   function clearChoices() {
@@ -509,18 +462,18 @@ function getTodayQueue(allQuestions) {
     const prog = loadProgress();
     const q = getCurrent();
 
-    dateInfoEl.textContent = "今日：" + todayStr();
-    queueInfoEl.textContent =
-      "今日の出題対象：" + queue.length + "問 / 今：" + (index + 1) + "問目";
+    dateInfoEl.textContent  = "今日：" + todayStr();
+    queueInfoEl.textContent = "今日の出題対象：" + queue.length +
+      "問 / 今：" + (index + 1) + "問目";
     totalInfoEl.textContent =
       "これまでの総解答数：" + getTotalAnswers() + "問";
 
     if (q) {
       const p = prog[q.id] || {};
-      const box = p.box || 0;
+      const box     = p.box || 0;
       const nextDue = p.nextDue || "未設定";
       wordInfoEl.textContent =
-        `ID:${q.id} / box:${box} / 次回:${nextDue}`;
+        `ID:${q.id}　カテゴリ:${q.category}　${p.correct ? "復習" : "初出題"} / box:${box} / 次回:${nextDue}`;
     } else {
       wordInfoEl.textContent = "";
     }
@@ -531,8 +484,7 @@ function getTodayQueue(allQuestions) {
     if (!q) {
       enHintEl.textContent = "";
       clearChoices();
-      noteEl.textContent =
-        "出題できる問題がありません。シートのデータを確認してください。";
+      noteEl.textContent = "出題できる問題がありません。";
       return;
     }
 
@@ -541,14 +493,13 @@ function getTodayQueue(allQuestions) {
 
     const stage = getStageForQuestion(q);
 
-    // 問題文・ラベル
     let labelHtml = "";
     let mainText  = "";
 
     if (q.type === "listen_en_to_jp") {
       if (stage === 1) {
         labelHtml = "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
-        mainText  = "";          // ステップ1は非表示
+        mainText  = "";
       } else {
         labelHtml = "👀 <b>英単語を「見て」、正しい日本語を選ぼう。</b>";
         mainText  = q.en || q.audio_text || q.prompt_jp;
@@ -566,7 +517,6 @@ function getTodayQueue(allQuestions) {
       labelHtml = "🧩 <b>正しい語順を選ぼう。</b>";
       mainText  = q.prompt_jp;
     } else {
-      // 万が一 type が未設定のときはリスニング扱い
       labelHtml = "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
       mainText  = stage === 1 ? "" : (q.en || q.prompt_jp);
     }
@@ -574,36 +524,35 @@ function getTodayQueue(allQuestions) {
     questionTextLabel.innerHTML = labelHtml;
     enHintEl.textContent = mainText;
 
-    // 選択肢をシャッフル表示
     const indexedChoices = q.choices.map((text, idx) => ({
       text,
-      index: idx
+      index: idx,
     }));
     shuffle(indexedChoices);
 
-    indexedChoices.forEach(choice => {
+    indexedChoices.forEach((choice) => {
       const btn = document.createElement("button");
       btn.className = "choice-button";
       btn.textContent = choice.text;
 
       btn.onclick = () => {
-        // リスニングは、答えたら英文を表示する
         if (q.type === "listen_en_to_jp" && stage === 1) {
-          enHintEl.textContent = q.en || q.audio_text || q.prompt_jp || "";
+          enHintEl.textContent =
+            q.en || q.audio_text || q.prompt_jp || "";
         }
 
         const correct = choice.index === q.correctIndex;
+
         if (correct) {
           btn.classList.add("correct");
           updateResult(q.id, true);
-          playCorrectSound();
           renderHeader();
-          setTimeout(() => nextQuestion(), 800);
+          setTimeout(() => nextQuestion(), 700);
         } else {
           btn.classList.add("wrong");
           updateResult(q.id, false);
           queue.push(q); // 今日の最後にもう一度
-          alert("不正解… 正しい答えは『" + q.choices[q.correctIndex] + "』です。");
+          alert("不正解… 正しい答えは「" + q.choices[q.correctIndex] + "」です。");
           renderHeader();
         }
       };
@@ -625,7 +574,7 @@ function getTodayQueue(allQuestions) {
   }
 
   // ============================
-  // 6. 回答結果の更新
+  // 6. 回答結果を更新
   // ============================
 
   function updateResult(id, isCorrect) {
@@ -635,7 +584,7 @@ function getTodayQueue(allQuestions) {
         box: 0,
         nextDue: todayStr(),
         correct: 0,
-        wrong: 0
+        wrong: 0,
       };
     }
     const p = prog[id];
@@ -660,7 +609,7 @@ function getTodayQueue(allQuestions) {
   }
 
   // ============================
-  // 7. 音声再生
+  // 7. 音声
   // ============================
 
   function speak(text) {
@@ -669,10 +618,6 @@ function getTodayQueue(allQuestions) {
     const uttr = new SpeechSynthesisUtterance(text);
     uttr.lang = "en-US";
     window.speechSynthesis.speak(uttr);
-  }
-
-  function playCorrectSound() {
-    // 今は何もしない。効果音を付けたくなったらここに書く
   }
 
   audioBtn.onclick = () => {
@@ -702,12 +647,10 @@ function getTodayQueue(allQuestions) {
   loadQuestionsFromSheet();
 
 
-
-
-    
   </script>
 </body>
 </html>
+
 
 
 
