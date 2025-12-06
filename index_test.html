@@ -192,7 +192,7 @@ const isCore = q => q.id <= 75;
 // 経過日数ごとの core / extra 比率（0〜1）
 // ※最初の4日間は core のみ（extra 0％）
 const PHASES = [
-  { maxDay: 4,   coreRatio: 1.0 }, // 0〜4日目: core 100%
+  { maxDay: 4,   coreRatio: 0.0 }, // 0〜4日目: core 100%
   { maxDay: 9,   coreRatio: 0.6 }, // 5〜9日目: core 60% / extra 40%
   { maxDay: 999, coreRatio: 0.3 }  // 10日目〜: core 30% / extra 70%
 ];
@@ -708,6 +708,7 @@ function getTodayQueue(allQuestions) {
   </script>
 </body>
 </html>
+
 
 
 
