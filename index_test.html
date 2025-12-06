@@ -283,69 +283,120 @@ loadQuestionsFromSheet();
 
   const DAILY_MAX = 15; // 1日に出す最大問題数
 
-  function getTodayQueue(all) {
-    const prog = loadProgress();
-    const today = todayStr();
-    const days = getElapsedDays(); // 何日目か
+const DAILY_MIN = 15;
+const DAILY_MAX = 20;
 
-    // 1) 出題対象の範囲を level で絞る
-    // 最初の5日間（days 0〜4）は core だけ
-    // 5日目以降は extra も含めて全部
-    let candidates = all.filter(q => {
-      const level = (q.level || "core").trim(); // levelが空ならcore扱い
-      if (days <= 4) {
-        // はじめの5日は core だけ
-        return level === "extra"; //  test
-      } else {
-        // 6日目以降は core も extra も出す
-        return true;
-      }
-    });
+function getTodayQueue(all) {
+  const prog = loadProgress();
+  const today = todayStr();
+  const days = getElapsedDays(); // ←さっき追加したやつ
 
-    // 2) 復習対象（due）と、まだ一度も出てない新規（fresh）に分ける
-    const due = [];
-    const fresh = [];
+  // level が空なら core 扱い
+  const isCore = q => ((q.level || "core").trim() === "core");
 
-    candidates.forEach(q => {
-      const p = prog[q.id];
-      if (!p) {
-        fresh.push(q); // まだ出したことがない
-      } else if (p.nextDue <= today) {
-        due.push(q);   // そろそろ復習する問題
-      }
-    });
+  // core / extra に分けておく
+  const coreAll  = all.filter(isCore);
+  const extraAll = all.filter(q => !isCore(q));
 
-    // シャッフル用関数
-    function shuffle(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
+  // まず候補プール（days<=4 でも extra は候補に入れておく）
+  const pool = coreAll.concat(extraAll);
+
+  // 2) DUE / FRESH を core / extra ごとに分ける
+  const dueCore   = [];
+  const dueExtra  = [];
+  const freshCore = [];
+  const freshExtra= [];
+
+  pool.forEach(q => {
+    const p = prog[q.id];
+    if (!p) {
+      // まだ一度も出てない
+      (isCore(q) ? freshCore : freshExtra).push(q);
+    } else if (p.nextDue <= today) {
+      // そろそろ復習
+      (isCore(q) ? dueCore : dueExtra).push(q);
+    }
+  });
+
+  // シャッフル関数
+  const shuffle = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  };
+
+  shuffle(dueCore);
+  shuffle(dueExtra);
+  shuffle(freshCore);
+  shuffle(freshExtra);
+
+  let result = [];
+
+  // ---- ここで core/extra の比率を決める ----
+  if (days <= 4) {
+    // はじめの5日間：extra を 1割くらい混ぜるイメージ
+    const targetTotal = DAILY_MIN;
+    let extraTarget = Math.max(1, Math.round(targetTotal * 0.1)); // 約1割、最低1問
+    let coreTarget  = targetTotal - extraTarget;
+
+    // 1) まず復習を優先して詰める
+    const take = (arr, n) => arr.splice(0, n); // 取り出したぶんは配列から消す
+
+    // coreの復習
+    let pickedCore = take(dueCore, coreTarget);
+    result.push(...pickedCore);
+    coreTarget -= pickedCore.length;
+
+    // extraの復習
+    let pickedExtra = take(dueExtra, extraTarget);
+    result.push(...pickedExtra);
+    extraTarget -= pickedExtra.length;
+
+    // 2) まだ枠があれば、新規で埋める
+    if (coreTarget > 0) {
+      pickedCore = take(freshCore, coreTarget);
+      result.push(...pickedCore);
+      coreTarget -= pickedCore.length;
+    }
+    if (extraTarget > 0) {
+      pickedExtra = take(freshExtra, extraTarget);
+      result.push(...pickedExtra);
+      extraTarget -= pickedExtra.length;
     }
 
+    // 3) それでも DAILY_MIN に届かない場合は、残りからタイプ問わず埋める
+    if (result.length < DAILY_MIN) {
+      const remain = DAILY_MIN - result.length;
+      const restPool = []
+        .concat(dueCore, dueExtra, freshCore, freshExtra);
+      shuffle(restPool);
+      result.push(...restPool.slice(0, remain));
+    }
+
+  } else {
+    // 6日目以降：core / extra の比率は気にせず、復習優先で15〜20問
+    const due = dueCore.concat(dueExtra);
+    const fresh = freshCore.concat(freshExtra);
     shuffle(due);
     shuffle(fresh);
 
-    let list = [];
+    result.push(...due.slice(0, DAILY_MAX));
 
-    // 3) まず復習ぶんを、上限まで詰める
-    list = due.slice(0, DAILY_MAX);
-
-    // 4) まだ枠があれば、新規を足す
-    if (list.length < DAILY_MAX) {
-      const remain = DAILY_MAX - list.length;
-      list = list.concat(fresh.slice(0, remain));
+    if (result.length < DAILY_MIN) {
+      const needed = DAILY_MIN - result.length;
+      result.push(...fresh.slice(0, needed));
     }
+  }
 
-    // 5) それでも0件なら、保険として candidates から取る
-    if (list.length === 0) {
-      list = candidates.slice(0, DAILY_MAX);
-    }
+  // 念のため最大数以上なら削る
+  result = result.slice(0, DAILY_MAX);
 
-    // 6) 最後に今日の出題順もシャッフル
-    shuffle(list);
+  // 最後に順番シャッフル
+  shuffle(result);
+  return result;
+}
 
-    return list;
   }
 
 
@@ -569,6 +620,7 @@ loadQuestionsFromSheet();
 
 </body>
 </html>
+
 
 
 
