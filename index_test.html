@@ -186,22 +186,24 @@
   // 1日の出題数
   const DAILY_TARGET = 15;
 
-  // id ベースで core / extra を判定（1〜75: core, 76〜: extra）
-  const isCore = q => q.id <= 75;
+// id ベースで core / extra を判定（1〜75: core, 76〜: extra）
+const isCore = q => q.id <= 75;
 
-  // 経過日数ごとの core / extra 比率（0〜1）
-  const PHASES = [
-    { maxDay: 4,   coreRatio: 9.0 }, // 0〜4日目: core 9割
-    { maxDay: 9,   coreRatio: 0.6 }, // 5〜9日目: core 6割
-    { maxDay: 999, coreRatio: 0.3 }  // 10日目〜: core 3割（extra多め）
-  ];
+// 経過日数ごとの core / extra 比率（0〜1）
+// ※最初の4日間は core のみ（extra 0％）
+const PHASES = [
+  { maxDay: 4,   coreRatio: 1.0 }, // 0〜4日目: core 100%
+  { maxDay: 9,   coreRatio: 0.6 }, // 5〜9日目: core 60% / extra 40%
+  { maxDay: 999, coreRatio: 0.3 }  // 10日目〜: core 30% / extra 70%
+];
 
-  function getPhase(days) {
-    for (const p of PHASES) {
-      if (days <= p.maxDay) return p;
-    }
-    return PHASES[PHASES.length - 1];
+function getPhase(days) {
+  for (const p of PHASES) {
+    if (days <= p.maxDay) return p;
   }
+  return PHASES[PHASES.length - 1];
+}
+
 
   const intervals = [1, 2, 5, 999]; // boxごとの間隔（日）
 
@@ -365,27 +367,83 @@
     }
   }
 
-  function getTodayQueue(allQuestions) {
-    const prog  = loadProgress();
-    const today = todayStr();
-    const days  = getElapsedDays();
-    const phase = getPhase(days);
+function getTodayQueue(allQuestions) {
+  const prog   = loadProgress();
+  const today  = todayStr();
+  const days   = getElapsedDays();
+  const phase  = getPhase(days);
+  const target = DAILY_TARGET; // 1日の目標数（今回は15）
 
-    const dueCore = [];
-    const dueExtra = [];
-    const freshCore = [];
-    const freshExtra = [];
+  const coreDue    = [];
+  const extraDue   = [];
+  const coreFresh  = [];
+  const extraFresh = [];
 
-    for (const q of allQuestions) {
-      const p = prog[q.id];
-      const core = isCore(q);
+  // 1. due / fresh & core / extra に分ける
+  for (const q of allQuestions) {
+    const p    = prog[q.id];
+    const core = isCore(q);
 
-      if (!p || !p.nextDue) {
-        (core ? freshCore : freshExtra).push(q);
-      } else if (p.nextDue <= today) {
-        (core ? dueCore : dueExtra).push(q);
-      }
+    if (p && p.nextDue && p.nextDue <= today) {
+      // 期限到来（復習）
+      (core ? coreDue : extraDue).push(q);
+    } else if (!p) {
+      // まだ一度も出題していない
+      (core ? coreFresh : extraFresh).push(q);
     }
+    // それ以外（次回出題日が未来）は今日は出さない
+  }
+
+  // 2. シャッフルして順序をランダムに
+  shuffle(coreDue);
+  shuffle(extraDue);
+  shuffle(coreFresh);
+  shuffle(extraFresh);
+
+  const result = [];
+
+  // 3. 今日の core / extra の目標数を決める
+  const targetCore  = Math.round(target * phase.coreRatio);
+  const targetExtra = target - targetCore;
+
+  // helper: 指定の配列から最大limitまでresultに追加
+  function takeFrom(arr, limit) {
+    while (limit > 0 && result.length < target && arr.length > 0) {
+      result.push(arr.shift());
+      limit--;
+    }
+    return limit;
+  }
+
+  // 4. まず core 枠を埋める（dues 優先 → fresh）
+  let needCore = targetCore;
+  needCore = takeFrom(coreDue, needCore);
+  needCore = takeFrom(coreFresh, needCore);
+
+  // 5. 次に extra 枠を埋める（dues 優先 → fresh）
+  let needExtra = targetExtra;
+  needExtra = takeFrom(extraDue, needExtra);
+  needExtra = takeFrom(extraFresh, needExtra);
+
+  // 6. まだ足りない場合は、残っているものから何でも入れる（core/extra問わず）
+  while (result.length < target) {
+    const pools = [coreDue, extraDue, coreFresh, extraFresh];
+    const nonEmpty = pools.filter(a => a.length > 0);
+    if (nonEmpty.length === 0) break; // もう入れる問題がない
+
+    const arr = nonEmpty[0];
+    result.push(arr.shift());
+  }
+
+  // 7. 安全のため、万一 target を超えたら切り捨てる
+  if (result.length > target) {
+    shuffle(result);
+    return result.slice(0, target);
+  }
+
+  shuffle(result);
+  return result;
+}
 
     shuffle(dueCore);
     shuffle(dueExtra);
@@ -650,6 +708,7 @@
   </script>
 </body>
 </html>
+
 
 
 
