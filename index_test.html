@@ -281,121 +281,124 @@ loadQuestionsFromSheet();
     saveProgress(prog);
   }
 
-const DAILY_MIN = 15; // 1日に出す最大問題数
-const DAILY_MAX = 20;
+  // ★ここから：学習開始日と経過日数の管理
+  const startDateKey = "saitama_listeningStartDate_v1";
 
-function getTodayQueue(all) {
-  const prog = loadProgress();
-  const today = todayStr();
-  const days = getElapsedDays(); // ←さっき追加したやつ
-
-  // level が空なら core 扱い
-  const isCore = q => ((q.level || "core").trim() === "core");
-
-  // core / extra に分けておく
-  const coreAll  = all.filter(isCore);
-  const extraAll = all.filter(q => !isCore(q));
-
-  // まず候補プール（days<=4 でも extra は候補に入れておく）
-  const pool = coreAll.concat(extraAll);
-
-  // 2) DUE / FRESH を core / extra ごとに分ける
-  const dueCore   = [];
-  const dueExtra  = [];
-  const freshCore = [];
-  const freshExtra= [];
-
-  pool.forEach(q => {
-    const p = prog[q.id];
-    if (!p) {
-      // まだ一度も出てない
-      (isCore(q) ? freshCore : freshExtra).push(q);
-    } else if (p.nextDue <= today) {
-      // そろそろ復習
-      (isCore(q) ? dueCore : dueExtra).push(q);
+  function getStartDate() {
+    let s = localStorage.getItem(startDateKey);
+    if (!s) {
+      s = todayStr(); // 初回は今日をスタート日にする
+      localStorage.setItem(startDateKey, s);
     }
-  });
-
-  // シャッフル関数
-  const shuffle = (arr) => {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-  };
-
-  shuffle(dueCore);
-  shuffle(dueExtra);
-  shuffle(freshCore);
-  shuffle(freshExtra);
-
-  let result = [];
-
-  // ---- ここで core/extra の比率を決める ----
-  if (days <= 4) {
-    // はじめの5日間：extra を 1割くらい混ぜるイメージ
-    const targetTotal = DAILY_MIN;
-    let extraTarget = Math.max(1, Math.round(targetTotal * 0.1)); // 約1割、最低1問
-    let coreTarget  = targetTotal - extraTarget;
-
-    // 1) まず復習を優先して詰める
-    const take = (arr, n) => arr.splice(0, n); // 取り出したぶんは配列から消す
-
-    // coreの復習
-    let pickedCore = take(dueCore, coreTarget);
-    result.push(...pickedCore);
-    coreTarget -= pickedCore.length;
-
-    // extraの復習
-    let pickedExtra = take(dueExtra, extraTarget);
-    result.push(...pickedExtra);
-    extraTarget -= pickedExtra.length;
-
-    // 2) まだ枠があれば、新規で埋める
-    if (coreTarget > 0) {
-      pickedCore = take(freshCore, coreTarget);
-      result.push(...pickedCore);
-      coreTarget -= pickedCore.length;
-    }
-    if (extraTarget > 0) {
-      pickedExtra = take(freshExtra, extraTarget);
-      result.push(...pickedExtra);
-      extraTarget -= pickedExtra.length;
-    }
-
-    // 3) それでも DAILY_MIN に届かない場合は、残りからタイプ問わず埋める
-    if (result.length < DAILY_MIN) {
-      const remain = DAILY_MIN - result.length;
-      const restPool = []
-        .concat(dueCore, dueExtra, freshCore, freshExtra);
-      shuffle(restPool);
-      result.push(...restPool.slice(0, remain));
-    }
-
-  } else {
-    // 6日目以降：core / extra の比率は気にせず、復習優先で15〜20問
-    const due = dueCore.concat(dueExtra);
-    const fresh = freshCore.concat(freshExtra);
-    shuffle(due);
-    shuffle(fresh);
-
-    result.push(...due.slice(0, DAILY_MAX));
-
-    if (result.length < DAILY_MIN) {
-      const needed = DAILY_MIN - result.length;
-      result.push(...fresh.slice(0, needed));
-    }
+    return s;
   }
 
-  // 念のため最大数以上なら削る
-  result = result.slice(0, DAILY_MAX);
+  function getElapsedDays() {
+    const start = new Date(getStartDate());
+    const today = new Date(todayStr());
+    const diffMs = today - start;
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24)); // 0,1,2...
+  }
+  // ★ここまで
 
-  // 最後に順番シャッフル
-  shuffle(result);
-  return result;
-}
+  // 1日の出題数
+  const DAILY_MIN = 15;
+  const DAILY_MAX = 20;
 
+  // ★ core/extra の比率も含めた今日の出題キュー
+  function getTodayQueue(all) {
+    const prog = loadProgress();
+    const today = todayStr();
+    const days = getElapsedDays();
 
+    const isCore = q => ((q.level || "core").trim() === "core");
+
+    const coreAll  = all.filter(isCore);
+    const extraAll = all.filter(q => !isCore(q));
+    const pool = coreAll.concat(extraAll);
+
+    const dueCore   = [];
+    const dueExtra  = [];
+    const freshCore = [];
+    const freshExtra= [];
+
+    pool.forEach(q => {
+      const p = prog[q.id];
+      if (!p) {
+        (isCore(q) ? freshCore : freshExtra).push(q);
+      } else if (p.nextDue <= today) {
+        (isCore(q) ? dueCore : dueExtra).push(q);
+      }
+    });
+
+    const shuffle = (arr) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    };
+
+    shuffle(dueCore);
+    shuffle(dueExtra);
+    shuffle(freshCore);
+    shuffle(freshExtra);
+
+    let result = [];
+
+    if (days <= 4) {
+      // ★1〜5日目：extra を約1割混ぜる
+      const targetTotal = DAILY_MIN;
+      let extraTarget = Math.max(1, Math.round(targetTotal * 0.1));
+      let coreTarget  = targetTotal - extraTarget;
+
+      const take = (arr, n) => arr.splice(0, n);
+
+      let pickedCore = take(dueCore, coreTarget);
+      result.push(...pickedCore);
+      coreTarget -= pickedCore.length;
+
+      let pickedExtra = take(dueExtra, extraTarget);
+      result.push(...pickedExtra);
+      extraTarget -= pickedExtra.length;
+
+      if (coreTarget > 0) {
+        pickedCore = take(freshCore, coreTarget);
+        result.push(...pickedCore);
+        coreTarget -= pickedCore.length;
+      }
+      if (extraTarget > 0) {
+        pickedExtra = take(freshExtra, extraTarget);
+        result.push(...pickedExtra);
+        extraTarget -= pickedExtra.length;
+      }
+
+      if (result.length < DAILY_MIN) {
+        const remain = DAILY_MIN - result.length;
+        const restPool = [].concat(dueCore, dueExtra, freshCore, freshExtra);
+        shuffle(restPool);
+        result.push(...restPool.slice(0, remain));
+      }
+
+    } else {
+      // 6日目以降：core/extra区別なしで復習優先
+      const due = dueCore.concat(dueExtra);
+      const fresh = freshCore.concat(freshExtra);
+      shuffle(due);
+      shuffle(fresh);
+
+      result.push(...due.slice(0, DAILY_MAX));
+
+      if (result.length < DAILY_MIN) {
+        const needed = DAILY_MIN - result.length;
+        result.push(...fresh.slice(0, needed));
+      }
+    }
+
+    result = result.slice(0, DAILY_MAX);
+    shuffle(result);
+    return result;
+  }
+  // ★ここまでが SRS ＋ 今日の出題数制御
 
   // ============================
   // 3. 正解ピンポン音
@@ -617,6 +620,7 @@ function getTodayQueue(all) {
 
 </body>
 </html>
+
 
 
 
