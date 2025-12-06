@@ -295,7 +295,7 @@ loadQuestionsFromSheet();
       const level = (q.level || "core").trim(); // levelが空ならcore扱い
       if (days <= 4) {
         // はじめの5日は core だけ
-        return level === "core";
+        return level === "extra"; / test
       } else {
         // 6日目以降は core も extra も出す
         return true;
@@ -569,6 +569,7 @@ loadQuestionsFromSheet();
 
 </body>
 </html>
+
 
 
 
