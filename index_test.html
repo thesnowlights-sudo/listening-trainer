@@ -146,7 +146,6 @@
       <div class="status" id="dateInfo"></div>
       <div class="status" id="queueInfo"></div>
       <div class="status" id="wordInfo"></div>
-      <!-- 通算解答数 -->
       <div class="status" id="totalInfo"></div>
 
       <!-- デバッグ用 -->
@@ -475,7 +474,7 @@
     }
 
     // ============================
-    // 5. 出題状態と描画
+    // 5. 出題モード判定 & 描画
     // ============================
     let queue = [];
     let index = 0;
@@ -509,6 +508,14 @@
       return 1;
     }
 
+    // 問題タイプ判定
+    function getQuestionMode(q) {
+      const cat = (q.category || "");
+      if (cat.includes("並べ替え"))   return "reorder"; // 76〜105
+      if (cat.includes("最重要表現")) return "phrase";  // 106〜135
+      return "listening";                                // 1〜75 など
+    }
+
     function renderHeader() {
       dateInfoEl.textContent = "今日：" + todayStr();
       queueInfoEl.textContent =
@@ -539,15 +546,6 @@
       choicesEl.innerHTML = "";
     }
 
-// ★★★ ここに追加する ★★★
-function getQuestionMode(q) {
-  const cat = (q.category || "");
-  if (cat.includes("並べ替え"))   return "reorder";
-  if (cat.includes("最重要表現")) return "phrase";
-  return "listening";
-}
-// ★★★★★★★★★★★★★★★★★★
-    
     function renderCard() {
       const q = getCurrent();
       if (!q) {
@@ -557,91 +555,99 @@ function getQuestionMode(q) {
           "出題できる問題がありません。シートのデータを確認してください。";
         return;
       }
-    renderHeader();
+      renderHeader();
+      clearChoices();
 
-clearChoices();
+      const mode  = getQuestionMode(q);
+      const stage = getStageForQuestion(q);  // listening のときだけ使用
 
-// 問題タイプ＆ステージを判定
-const mode  = getQuestionMode(q);
-const stage = getStageForQuestion(q);
+      // ------- 表示の切り替え --------
+      if (mode === "reorder") {
+        // 並べ替え：英文を見て語順を選ぶ
+        questionTextLabel.innerHTML =
+          "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
+        enHintEl.textContent = q.en || q.prompt_jp || "";
+        audioBtn.textContent = "▶ 英文を聞く";
 
-// ------- 表示の切り替え --------
-if (mode === "reorder") {
-  // ▼ 並べ替え問題：読む問題として扱う
-  questionTextLabel.innerHTML =
-    "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
-  // 並べ替えは英文そのものを見せたいので en を表示
-  enHintEl.textContent = q.en || q.prompt_jp || "";
-  audioBtn.textContent = "▶ 英文を読み上げる";
+      } else if (mode === "phrase") {
+        // 最重要表現：英文を見て、日本語を選ぶ
+        questionTextLabel.innerHTML =
+          "📘 <b>英文を読んで、正しい日本語を選ぼう。</b>";
+        // ★ ここで必ず英語を表示する（あなたの要望）
+        enHintEl.textContent = q.en || "";
+        audioBtn.textContent = "▶ 英文を聞く";
 
-} else if (mode === "phrase") {
-  // ▼ 最重要表現：フレーズ問題
-  questionTextLabel.innerHTML =
-    "📘 <b>フレーズを読んで、正しい意味を選ぼう。</b>";
-  enHintEl.textContent = q.en || "";
-  audioBtn.textContent = "▶ フレーズを読み上げる";
+      } else {
+        // 通常のリスニング問題
+        if (stage === 1) {
+          questionTextLabel.innerHTML =
+            "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
+          enHintEl.textContent = "";           // ステップ1は英単語を隠す
+          audioBtn.textContent = "▶ 音声を聞く";
+        } else {
+          questionTextLabel.innerHTML =
+            "👀 <b>英単語を「見て」、正しい日本語を選ぼう。</b>";
+          enHintEl.textContent = q.en;         // ステップ2は英単語を表示
+          audioBtn.textContent = "▶ もう一度音声を聞く";
+        }
+      }
 
-} else {
-  // ▼ リスニング系（数字・場所・動詞 など）
-  if (stage === 1) {
-    questionTextLabel.innerHTML =
-      "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
-    enHintEl.textContent = "";           // ステップ1は英単語を隠す
-    audioBtn.textContent = "▶ 音声を聞く";
-  } else {
-    questionTextLabel.innerHTML =
-      "👀 <b>英単語を「見て」、正しい日本語を選ぼう。</b>";
-    enHintEl.textContent = q.en;         // ステップ2は英単語を表示
-    audioBtn.textContent = "▶ もう一度音声を聞く";
-  }
-}
+      // --- 選択肢の表示順だけランダム化 ---
+      const indexedChoices = q.choices.map((text, idx) => ({
+        text,
+        index: idx
+      }));
 
-// --- 選択肢の表示順だけランダム化 ---
-const indexedChoices = q.choices.map((text, idx) => ({
-  text,
-  index: idx
-}));
+      for (let i = indexedChoices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indexedChoices[i], indexedChoices[j]] =
+          [indexedChoices[j], indexedChoices[i]];
+      }
 
-for (let i = indexedChoices.length - 1; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1));
-  [indexedChoices[i], indexedChoices[j]] =
-    [indexedChoices[j], indexedChoices[i]];
-}
+      let answered = false;
 
-let answered = false;
+      indexedChoices.forEach(choice => {
+        const btn = document.createElement("button");
+        btn.className = "choice-btn";
+        btn.textContent = choice.text;
 
-indexedChoices.forEach(choice => {
-  const btn = document.createElement("button");
-  btn.className = "choice-btn";
-  btn.textContent = choice.text;
+        btn.onclick = () => {
+          if (answered) return;
+          answered = true;
 
-  btn.onclick = () => {
-    if (answered) return;
-    answered = true;
+          // 答えたら単語 or 問題文を表示
+          enHintEl.textContent = q.audio_text || q.en || q.prompt_jp || "";
 
-    // 答えたら単語 or 問題文を表示
-    enHintEl.textContent = q.audio_text || q.en || q.prompt_jp || "";
+          const correct = choice.index === q.correctIndex;
+          if (correct) {
+            btn.classList.add("correct");
+            updateResult(q.id, true);
+            playCorrectSound();
+            setTimeout(() => nextQuestion(), 800);
+          } else {
+            btn.classList.add("wrong");
+            updateResult(q.id, false);
+            queue.push(q); // 今日の最後にもう一度
+            alert("不正解… 正しい答えは『" + q.choices[q.correctIndex] + "』です。");
+          }
+          // 回答したのでヘッダーも更新（通算解答数）
+          renderHeader();
+        };
 
-    const correct = choice.index === q.correctIndex;
-    if (correct) {
-      btn.classList.add("correct");
-      updateResult(q.id, true);
-      playCorrectSound();
-      setTimeout(() => nextQuestion(), 800);
-    } else {
-      btn.classList.add("wrong");
-      updateResult(q.id, false);
-      queue.push(q); // 今日の最後にもう一度
-      alert("不正解… 正しい答えは『" + q.choices[q.correctIndex] + "』です。");
+        choicesEl.appendChild(btn);
+      });
+
+      noteEl.textContent = q.note ? "メモ：" + q.note : "";
     }
-    // 回答したのでヘッダーも更新（通算解答数）
-    renderHeader();
-  };
 
-  choicesEl.appendChild(btn);
-});
-
-noteEl.textContent = q.note ? "メモ：" + q.note : "";
+    function nextQuestion() {
+      index++;
+      if (index >= queue.length) {
+        queue = getTodayQueue(questions);
+        index = 0;
+        alert("今日の分は一周しました。（間違えたものはまた出てきます）");
+      }
+      renderCard();
     }
 
     // ============================
@@ -683,4 +689,3 @@ noteEl.textContent = q.note ? "メモ：" + q.note : "";
   </script>
 </body>
 </html>
-
