@@ -281,21 +281,73 @@ loadQuestionsFromSheet();
     saveProgress(prog);
   }
 
+  const DAILY_MAX = 15; // 1日に出す最大問題数
+
   function getTodayQueue(all) {
     const prog = loadProgress();
     const today = todayStr();
-    let list = all.filter(q => {
-      const p = prog[q.id];
-      if (!p) return true;
-      return p.nextDue <= today;
+    const days = getElapsedDays(); // 何日目か
+
+    // 1) 出題対象の範囲を level で絞る
+    // 最初の5日間（days 0〜4）は core だけ
+    // 5日目以降は extra も含めて全部
+    let candidates = all.filter(q => {
+      const level = (q.level || "core").trim(); // levelが空ならcore扱い
+      if (days <= 4) {
+        // はじめの5日は core だけ
+        return level === "core";
+      } else {
+        // 6日目以降は core も extra も出す
+        return true;
+      }
     });
-    if (list.length === 0) list = all.slice();
-    for (let i = list.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [list[i], list[j]] = [list[j], list[i]];
+
+    // 2) 復習対象（due）と、まだ一度も出てない新規（fresh）に分ける
+    const due = [];
+    const fresh = [];
+
+    candidates.forEach(q => {
+      const p = prog[q.id];
+      if (!p) {
+        fresh.push(q); // まだ出したことがない
+      } else if (p.nextDue <= today) {
+        due.push(q);   // そろそろ復習する問題
+      }
+    });
+
+    // シャッフル用関数
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
     }
+
+    shuffle(due);
+    shuffle(fresh);
+
+    let list = [];
+
+    // 3) まず復習ぶんを、上限まで詰める
+    list = due.slice(0, DAILY_MAX);
+
+    // 4) まだ枠があれば、新規を足す
+    if (list.length < DAILY_MAX) {
+      const remain = DAILY_MAX - list.length;
+      list = list.concat(fresh.slice(0, remain));
+    }
+
+    // 5) それでも0件なら、保険として candidates から取る
+    if (list.length === 0) {
+      list = candidates.slice(0, DAILY_MAX);
+    }
+
+    // 6) 最後に今日の出題順もシャッフル
+    shuffle(list);
+
     return list;
   }
+
 
   // ============================
   // 3. 正解ピンポン音
@@ -517,6 +569,7 @@ loadQuestionsFromSheet();
 
 </body>
 </html>
+
 
 
 
