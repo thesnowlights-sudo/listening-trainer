@@ -345,7 +345,7 @@ async function loadQuestionsFromSheet() {
     if (days <= 4) {
       // ★1〜5日目：extra を約1割混ぜる
       const targetTotal = DAILY_MIN;
-      let extraTarget = Math.max(1, Math.round(targetTotal * 0.1));
+      let extraTarget = Math.max(1, Math.round(targetTotal * 1.0));
       let coreTarget  = targetTotal - extraTarget;
 
       const take = (arr, n) => arr.splice(0, n);
@@ -617,6 +617,7 @@ async function loadQuestionsFromSheet() {
 
 </body>
 </html>
+
 
 
 
