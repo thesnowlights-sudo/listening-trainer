@@ -467,21 +467,28 @@
       if (p.box >= 3) return 2;
       return 1;
     }
- function getQuestionMode(q) {
+function getQuestionMode(q) {
   const type = (q.type || "").toLowerCase();
-  const cat = (q.category || "");
-  
+  const cat  = q.category || "";
+
   console.log(`getQuestionMode - ID:${q.id}, type:"${type}", category:"${cat}"`);
-  
-  // typeフィールドを優先的にチェック
-  if (type.includes("reorder")) {
-    console.log(`  → reorder判定`);
-    return "reorder";
-  }
-  if (type.includes("read_en_to_jp")) {
-    console.log(`  → read_en_to_jp判定`);
-    return "read_en_to_jp";
-  }
+
+  // 1) type フィールドを優先
+  if (type.includes("reorder"))        return "reorder";     // 並べ替え
+  if (type.includes("read_en_to_jp"))  return "phrase";      // 英文→日本語（読む問題）
+  if (type.includes("read_jp_to_en"))  return "jp_to_en";    // 日本語→英語
+  if (type.includes("fill_en_blank"))  return "fill_blank";  // 穴埋め
+  if (type.includes("listen_en_to_jp"))return "listening";   // リスニング 英文→日本語
+
+  // 2) type が空のときは category でフォールバック
+  if (cat.includes("並べ替え"))   return "reorder";
+  if (cat.includes("最重要表現")) return "phrase";
+  if (cat.includes("穴埋め"))     return "fill_blank";
+
+  // 3) どれでもなければリスニング扱い
+  return "listening";
+}
+
   
     function renderHeader() {
       const days = getElapsedDays();
@@ -754,4 +761,5 @@
   </script>
 </body>
 </html>
+
 
