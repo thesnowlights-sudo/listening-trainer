@@ -500,26 +500,17 @@
       let displayText = "";
       let questionPrompt = "";
       if (mode === "reorder") {
-  displayText = q.prompt_en || q.audio_text || q.en || "";
-  questionPrompt = "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
-
-} else if (mode === "phrase" || mode === "read_en_to_jp") {
-  displayText = q.prompt_en || q.audio_text || q.en || "";
-  questionPrompt = "📘 <b>英文を読んで、正しい日本語を選ぼう。</b>";
-
-} else if (mode === "jp_to_en") {
-  displayText = q.prompt_jp || "";
-  questionPrompt = "🇯🇵 <b>問題を読んで、正しい英語を選ぼう。</b>";
-
-} else if (mode === "fill_blank") {
-  displayText = q.prompt_jp || "";
-  questionPrompt = "✏ <b>空欄に入る正しいものを選ぼう。</b>";
-
-} else {
-  // listening fallback logic（必要なら変更）
-  displayText = q.prompt_en || q.en || "";
-}
-
+        displayText = q.en || q.audio_text || "";
+        questionPrompt = "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
+      } else if (mode === "phrase") {
+        displayText = q.audio_text || q.en || "";
+        questionPrompt = "📘 <b>英文を読んで、正しい日本語を選ぼう。</b>";
+      } else if (mode === "jp_to_en") {
+        displayText = q.prompt_jp || "";
+        questionPrompt = "🇯🇵 <b>問題を読んで、正しい英語を選ぼう。</b>";
+      } else if (mode === "fill_blank") {
+        displayText = q.prompt_jp || "";
+        questionPrompt = "✏️ <b>空欄に入る正しいものを選ぼう。</b>";
       } else {
         if (stage === 1) {
           displayText = "";
@@ -532,7 +523,7 @@
       questionTextLabel.innerHTML = questionPrompt;
       enHintEl.textContent = displayText;
       if (mode === "jp_to_en" || mode === "fill_blank") {
-        audioBtn.textContent = "▶ 音声なし";
+        audioBtn.textContent = "▶ 選択肢を聞く";
       } else {
         audioBtn.textContent = "▶ 英文を聞く";
       }
@@ -644,7 +635,3 @@
   </script>
 </body>
 </html>
-
-
-
-
