@@ -640,16 +640,42 @@
       nextQuestion();
     };
 
-    // デバッグモードの切り替え（Ctrl+Shift+D）
+    // デバッグモードの切り替え（Ctrl+Shift+Z）
     document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+      if (e.ctrlKey && e.shiftKey && e.key === 'Z') {
+        e.preventDefault(); // ブラウザのデフォルト動作を防ぐ
         debugMode = !debugMode;
         debugControl.style.display = debugMode ? 'block' : 'none';
         if (debugMode) {
-          alert('デバッグモードON：特定のIDを表示できます');
+          alert('🔧 デバッグモードON：特定のIDを表示できます\nCtrl+Shift+Z で切り替え');
         } else {
           alert('デバッグモードOFF');
         }
+      }
+    });
+    
+    // または、3回連続スキップでもOK（スマホ用）
+    let skipClickCount = 0;
+    let skipClickTimer = null;
+    
+    skipBtn.addEventListener('click', () => {
+      skipClickCount++;
+      
+      if (skipClickTimer) clearTimeout(skipClickTimer);
+      
+      if (skipClickCount >= 3) {
+        debugMode = !debugMode;
+        debugControl.style.display = debugMode ? 'block' : 'none';
+        if (debugMode) {
+          alert('🔧 デバッグモードON：特定のIDを表示できます');
+        } else {
+          alert('デバッグモードOFF');
+        }
+        skipClickCount = 0;
+      } else {
+        skipClickTimer = setTimeout(() => {
+          skipClickCount = 0;
+        }, 1000);
       }
     });
     
