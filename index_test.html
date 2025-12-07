@@ -155,504 +155,548 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
- 
-<script>
-  // ============================
-  // 0. DOM取得
-  // ============================
-  const questionTextLabel = document.getElementById("questionTextLabel");
-  const enHintEl          = document.getElementById("enHint");
-  const choicesEl         = document.getElementById("choices");
-  const noteEl            = document.getElementById("note");
+  <script>
+    // ▼ スプレッドシートのCSV公開URL
+    const SHEET_CSV_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=97402127&single=true&output=csv";
 
-  const audioBtn    = document.getElementById("audioBtn");
-  const skipBtn     = document.getElementById("skipBtn");
-  const nextBtn     = document.getElementById("nextBtn");
-  const dateInfoEl  = document.getElementById("dateInfo");
-  const queueInfoEl = document.getElementById("queueInfo");
-  const totalInfoEl = document.getElementById("totalInfo");
-  const wordInfoEl  = document.getElementById("wordInfo");
-  const debugInfoEl = document.getElementById("debugInfo");
-  const debugIdsEl  = document.getElementById("debugIds");
+    // 1日の出題数
+    const DAILY_TARGET = 15;
 
-  // ============================
-  // 1. 基本設定
-  // ============================
+    // id ベースで core / extra を判定（1～75: core, 76～: extra）
+    const isCore = q => q.id <= 75;
 
-  // ★ここを書き換えてください（スプレッドシートを「ウェブに公開 → CSV」のURL）
-  const SHEET_CSV_URL =
-    "https://docs.google.com/spreadsheets/d/xxxxxxxxxxxxxxxxxxxx/export?format=csv";
+    // 経過日数ごとの core / extra 比率（0～1）
+    const PHASES = [
+      { maxDay: 5,   coreRatio: 0.85 }, // 0～5日目: core 85%
+      { maxDay: 12,  coreRatio: 0.65 }, // 6～12日目: core 65%
+      { maxDay: 999, coreRatio: 0.4 }   // 13日目～: core 4割（extra徐々に増）
+    ];
 
-  // 1日の出題数（固定）
-  const DAILY_TARGET = 15;
-
-  // id ベースで core / extra を判定（1〜75: core, 76〜: extra）
-  const isCore = (q) => q.id <= 75;
-
-  // 経過日数ごとの core / extra 比率（0〜1）
-  const PHASES = [
-    { maxDay: 4,   coreRatio: 1.0 }, // 0〜4日目: core 100%
-    { maxDay: 9,   coreRatio: 0.6 }, // 5〜9日目: core 60%
-    { maxDay: 999, coreRatio: 0.3 }, // 10日目〜: core 30%
-  ];
-
-  function getPhase(days) {
-    for (const p of PHASES) {
-      if (days <= p.maxDay) return p;
+    function getPhase(days) {
+      for (const p of PHASES) {
+        if (days <= p.maxDay) return p;
+      }
+      return PHASES[PHASES.length - 1];
     }
-    return PHASES[PHASES.length - 1];
-  }
 
-  // boxごとのインターバル（日）
-  const intervals = [1, 2, 5, 999];
+    let questions = [];
 
-  let questions = [];
-  let queue     = [];
-  let index     = 0;
+    // ============================
+    // 1. スプレッドシートから問題を読み込む
+    // ============================
+    async function loadQuestionsFromSheet() {
+      try {
+        const res = await fetch(SHEET_CSV_URL);
+        if (!res.ok) throw new Error("HTTPエラー: " + res.status);
 
-  // ============================
-  // 2. 日付・進捗
-  // ============================
+        const csvText = await res.text();
 
-  const progressKey  = "saitama_trainer_progress_v4";
-  const startDateKey = "saitama_trainer_startDate_v4";
+        const parsed = Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true
+        });
 
-  function todayStr() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  }
+        if (parsed.errors && parsed.errors.length > 0) {
+          noteEl.textContent = "CSV解析エラー: " + parsed.errors[0].message;
+          console.log(parsed.errors);
+        }
 
-  function loadProgress() {
-    try {
-      const raw = localStorage.getItem(progressKey);
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  }
+        const rawRows = parsed.data.length;
 
-  function saveProgress(obj) {
-    localStorage.setItem(progressKey, JSON.stringify(obj));
-  }
+        questions = parsed.data
+          .map((row, idx) => {
+            const id = Number(row.id || idx + 1);
 
-  function getStartDate() {
-    let s = localStorage.getItem(startDateKey);
-    if (!s) {
-      s = todayStr();
-      localStorage.setItem(startDateKey, s);
-    }
-    return s;
-  }
+            // 空でない選択肢だけを使う
+            let choices = [
+              row.choice1,
+              row.choice2,
+              row.choice3,
+              row.choice4
+            ].filter(v => v && String(v).trim() !== "");
 
-  function getElapsedDays() {
-    const start = new Date(getStartDate());
-    const today = new Date(todayStr());
-    const diffMs = today - start;
-    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  }
+            // もし choice が1つも無い場合は jp を選択肢として使う（保険）
+            if (choices.length === 0 && row.jp) {
+              choices = [row.jp];
+            }
 
-  function getTotalAnswers() {
-    const prog = loadProgress();
-    let total = 0;
-    for (const id in prog) {
-      const p = prog[id];
-      total += (p.correct || 0) + (p.wrong || 0);
-    }
-    return total;
-  }
+            // correct は 1 始まり
+            const rawCorrect = Number(row.correct);
+            let correctIndex = 0;
+            if (!Number.isNaN(rawCorrect) && rawCorrect > 0 && rawCorrect <= choices.length) {
+              correctIndex = rawCorrect - 1;
+            }
 
-  // ============================
-  // 3. CSV読み込み
-  // ============================
+            return {
+              id,
+              category: row.category || "",
+              prompt_jp: row.prompt_jp || "",
+              en: row.en || row.prompt_en || "",
+              jp: row.jp || "",
+              audio_text: cleanAudioText(row),
+              choices,
+              correctIndex,
+              note: row.note || "",
+              type: row.type || ""
+            };
+          })
+          // id と choices があるものだけ対象
+          .filter(q => q.id && q.choices.length > 0);
 
-  async function loadQuestionsFromSheet() {
-    try {
-      const res = await fetch(SHEET_CSV_URL);
-      if (!res.ok) throw new Error("HTTPエラー: " + res.status);
-      const csvText = await res.text();
-
-      const parsed = Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true
-      });
-
-      const rawRows = parsed.data.length;
-
-      questions = parsed.data
-        .map((row, idx) => {
-          const id = Number(row.id || idx + 1);
-
-          let choices = [
-            row.choice1,
-            row.choice2,
-            row.choice3,
-            row.choice4,
-          ].filter((v) => v && String(v).trim() !== "");
-
-          if (choices.length === 0 && row.jp) {
-            choices = [row.jp];
+        // audio_textをクリーンアップする関数
+        function cleanAudioText(row) {
+          let text = row.audio_text || row.en || row.prompt_en || "";
+          
+          // "-" や空白は空文字列に
+          if (text === "-" || text.trim() === "") {
+            text = "";
           }
-
-          const rawCorrect = Number(row.correct);
-          let correctIndex = 0;
-          if (
-            !Number.isNaN(rawCorrect) &&
-            rawCorrect > 0 &&
-            rawCorrect <= choices.length
-          ) {
-            correctIndex = rawCorrect - 1;
+          
+          // ID 122のような特殊ケース：長すぎる場合は正解の選択肢を使う
+          if (text.length > 100) {
+            // correct列から正解を取得
+            const correctIdx = Number(row.correct) - 1;
+            if (correctIdx >= 0) {
+              const choices = [row.choice1, row.choice2, row.choice3, row.choice4].filter(v => v && String(v).trim() !== "");
+              text = choices[correctIdx] || text;
+            }
           }
+          
+          return text;
+        }
 
-          return {
-            id,
-            type: (row.type || "").trim(),
-            category: row.category || "",
-            level: row.level || "",
-            prompt_jp: row.prompt_jp || "",
-            prompt_en: row.prompt_en || "",
-            en: row.en || "",
-            jp: row.jp || "",
-            audio_text:
-              row.audio_text ||
-              row.en ||
-              row.prompt_en ||
-              row.prompt_jp ||
-              "",
-            choices,
-            correctIndex,
-            note: row.note || "",
-          };
-        })
-        .filter((q) => q.id && q.choices.length > 0);
+        const coreCount  = questions.filter(q => isCore(q)).length;
+        const extraCount = questions.filter(q => !isCore(q)).length;
 
-      const coreCount  = questions.filter((q) => isCore(q)).length;
-      const extraCount = questions.filter((q) => !isCore(q)).length;
+        console.log("raw rows:", rawRows);
+        console.log("valid questions:", questions.length);
+        console.log("core (id<=75):", coreCount);
+        console.log("extra (id>=76):", extraCount);
 
-      debugInfoEl.textContent =
-        `CSV行数:${rawRows} / 有効:${questions.length} (core:${coreCount}, extra:${extraCount})`;
-      debugIdsEl.textContent =
-        "ID一覧(先頭30): " +
-        questions.map((q) => q.id).slice(0, 30).join(", ");
+        debugInfoEl.textContent =
+          `CSV行数:${rawRows} / 有効:${questions.length} (core:${coreCount}, extra:${extraCount})`;
 
-      if (questions.length === 0) {
-        noteEl.textContent =
-          "データは読み込めましたが、有効な問題が0件です。";
+        if (questions.length === 0) {
+          noteEl.textContent =
+            "データは読み込めましたが、有効な問題が0件です。";
+          return;
+        }
+
+        // ▼ テスト用設定
+        const DEBUG_EXTRA_ONLY = false;  // extraだけテストしたい時は true に
+        const DEBUG_CORE_ONLY = false;   // coreだけテストしたい時は true に
+        
+        if (DEBUG_EXTRA_ONLY) {
+          questions = questions.filter(q => !isCore(q));
+          console.log("DEBUG: extraのみ", questions.length, "問");
+          debugInfoEl.textContent = `DEBUG: extraのみ ${questions.length}問`;
+        } else if (DEBUG_CORE_ONLY) {
+          questions = questions.filter(q => isCore(q));
+          console.log("DEBUG: coreのみ", questions.length, "問");
+          debugInfoEl.textContent = `DEBUG: coreのみ ${questions.length}問`;
+        }
+
+        queue = getTodayQueue(questions);
+        index = 0;
+        
+        // デバッグ：今日のキューのIDを表示
+        console.log("今日の出題キュー:", queue.map(q => q.id));
+        debugIdsEl.textContent =
+          `今日の出題ID: ${queue.map(q => q.id).join(", ")}`;
+        
+        renderCard();
+      } catch (err) {
+        console.error(err);
+        noteEl.textContent = "シート読み込みエラー: " + err.message;
+      }
+    }
+
+    // ============================
+    // 2. 進捗管理（SRS）
+    // ============================
+    const progressKey  = "saitama_trainer_progress_v3";
+    const startDateKey = "saitama_trainer_startDate_v3";
+
+    const intervals = [1, 2, 5, 999];
+
+    function todayStr() {
+      const d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+
+    function loadProgress() {
+      try {
+        return JSON.parse(localStorage.getItem(progressKey) || "{}");
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveProgress(p) {
+      localStorage.setItem(progressKey, JSON.stringify(p));
+    }
+
+    function updateResult(id, isCorrect) {
+      const prog = loadProgress();
+      const now = todayStr();
+      if (!prog[id]) {
+        prog[id] = { box: 0, nextDue: now, correct: 0, wrong: 0 };
+      }
+      let box = prog[id].box;
+
+      if (isCorrect) {
+        box = Math.min(box + 1, 3);
+        prog[id].correct++;
+      } else {
+        box = 0;
+        prog[id].wrong++;
+      }
+
+      const d = new Date();
+      d.setDate(d.getDate() + intervals[box]);
+      prog[id].box = box;
+      prog[id].nextDue = d.toISOString().slice(0, 10);
+      saveProgress(prog);
+    }
+
+    function getStartDate() {
+      let s = localStorage.getItem(startDateKey);
+      if (!s) {
+        s = todayStr(); // 初回は今日
+        localStorage.setItem(startDateKey, s);
+      }
+      return s;
+    }
+
+    function getElapsedDays() {
+      const start = new Date(getStartDate());
+      const today = new Date(todayStr());
+      const diffMs = today - start;
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24)); // 0,1,2...
+    }
+
+    // これまでの通算解答数（正解＋不正解の合計）
+    function getTotalAnswers() {
+      const prog = loadProgress();
+      let total = 0;
+      for (const id in prog) {
+        const p = prog[id];
+        total += (p.correct || 0) + (p.wrong || 0);
+      }
+      return total;
+    }
+
+    // ============================
+    // 3. 今日の出題キュー
+    // ============================
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    function takeFrom(source, n, out) {
+      let count = 0;
+      while (n > 0 && source.length > 0) {
+        out.push(source.shift());  // 先頭から取り出す
+        n--;
+        count++;
+      }
+      return count;
+    }
+
+    function getTodayQueue(allQuestions) {
+      const prog  = loadProgress();
+      const today = todayStr();
+      const days  = getElapsedDays();
+      const phase = getPhase(days);
+
+      const due        = []; // 期限到来分（core/extra混在）
+      const freshCore  = [];
+      const freshExtra = [];
+
+      for (const q of allQuestions) {
+        const p = prog[q.id];
+        const core = isCore(q);
+
+        if (p && p.nextDue <= today) {
+          due.push(q); // 復習優先
+        } else if (!p) {
+          (core ? freshCore : freshExtra).push(q); // 初出題
+        }
+      }
+
+      shuffle(due);
+      shuffle(freshCore);
+      shuffle(freshExtra);
+
+      const result = [];
+
+      // 1) due を優先
+      takeFrom(due, DAILY_TARGET, result);
+
+      if (result.length >= DAILY_TARGET) {
+        shuffle(result);
+        return result;
+      }
+
+      // 2) 残りを core/extra 比率で補充
+      const remaining = DAILY_TARGET - result.length;
+      const coreNeed  = Math.round(remaining * phase.coreRatio);
+      const extraNeed = remaining - coreNeed;
+
+      takeFrom(freshCore, coreNeed, result);
+      takeFrom(freshExtra, extraNeed, result);
+
+      // 3) 片方が足りなかったら、もう片方から補充
+      if (result.length < DAILY_TARGET) {
+        const still = DAILY_TARGET - result.length;
+        takeFrom(freshCore, still, result);
+        takeFrom(freshExtra, still, result);
+      }
+
+      shuffle(result);
+      return result;
+    }
+
+    // ============================
+    // 4. 正解ピンポン音
+    // ============================
+    let audioCtx = null;
+    function playCorrectSound() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) audioCtx = new AC();
+
+        const now = audioCtx.currentTime;
+
+        const osc1 = audioCtx.createOscillator();
+        const g1 = audioCtx.createGain();
+        osc1.type = "sine";
+        osc1.frequency.value = 880;
+        g1.gain.setValueAtTime(0.0, now);
+        g1.gain.linearRampToValueAtTime(0.25, now + 0.01);
+        g1.gain.linearRampToValueAtTime(0.0, now + 0.12);
+        osc1.connect(g1);
+        g1.connect(audioCtx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.15);
+
+        const osc2 = audioCtx.createOscillator();
+        const g2 = audioCtx.createGain();
+        osc2.type = "sine";
+        osc2.frequency.value = 1320;
+        g2.gain.setValueAtTime(0.0, now + 0.10);
+        g2.gain.linearRampToValueAtTime(0.2, now + 0.12);
+        g2.gain.linearRampToValueAtTime(0.0, now + 0.24);
+        osc2.connect(g2);
+        g2.connect(audioCtx.destination);
+        osc2.start(now + 0.10);
+        osc2.stop(now + 0.25);
+      } catch (e) {}
+    }
+
+    // ============================
+    // 5. 出題モード判定 & 描画
+    // ============================
+    let queue = [];
+    let index = 0;
+
+    const dateInfoEl   = document.getElementById("dateInfo");
+    const queueInfoEl  = document.getElementById("queueInfo");
+    const wordInfoEl   = document.getElementById("wordInfo");
+    const totalInfoEl  = document.getElementById("totalInfo");
+    const debugInfoEl  = document.getElementById("debugInfo");
+    const debugIdsEl   = document.getElementById("debugIds");
+    const enHintEl     = document.getElementById("enHint");
+    const choicesEl    = document.getElementById("choices");
+    const noteEl       = document.getElementById("note");
+    const questionTextLabel = document.getElementById("questionTextLabel");
+
+    const audioBtn = document.getElementById("audioBtn");
+    const skipBtn  = document.getElementById("skipBtn");
+    const nextBtn  = document.getElementById("nextBtn");
+
+    function getCurrent() {
+      if (queue.length === 0) return null;
+      return queue[index];
+    }
+
+    // レベル判定：box>=3 でステップ2（リスニング系だけで使用）
+    function getStageForQuestion(q) {
+      const prog = loadProgress();
+      const p = prog[q.id];
+      if (!p) return 1;       // 初回はレベル1
+      if (p.box >= 3) return 2; // 3回以上正解でレベル2
+      return 1;
+    }
+
+    // 問題タイプ判定
+    function getQuestionMode(q) {
+      // typeフィールドも確認する
+      const type = (q.type || "").toLowerCase();
+      const cat = (q.category || "");
+      
+      // 並べ替え問題
+      if (type.includes("reorder") || cat.includes("並べ替え")) {
+        return "reorder";
+      }
+      
+      // 日本語→英語の問題
+      if (type.includes("jp_to_en")) {
+        return "jp_to_en";
+      }
+      
+      // 空欄補充問題
+      if (type.includes("fill") || type.includes("blank")) {
+        return "fill_blank";
+      }
+      
+      // 最重要表現（英語→日本語）
+      if (cat.includes("最重要表現")) {
+        return "phrase";
+      }
+      
+      // デフォルトはリスニング
+      return "listening";
+    }
+
+    function renderHeader() {
+      const days = getElapsedDays();
+      const phase = getPhase(days);
+      
+      dateInfoEl.textContent = 
+        `今日：${todayStr()} / 学習${days + 1}日目 (Core${Math.round(phase.coreRatio * 100)}% / Extra${Math.round((1 - phase.coreRatio) * 100)}%)`;
+      
+      // キューの内訳を表示
+      const coreInQueue = queue.filter(q => isCore(q)).length;
+      const extraInQueue = queue.length - coreInQueue;
+      
+      queueInfoEl.textContent =
+        `今日の出題対象：${queue.length}問 (core:${coreInQueue}, extra:${extraInQueue}) / 今：${index + 1}問目`;
+
+      const prog = loadProgress();
+      const q = getCurrent();
+      if (!q) {
+        wordInfoEl.textContent = "";
+        totalInfoEl.textContent = "これまでの通算解答数：0 回";
         return;
       }
-
-      queue = getTodayQueue(questions);
-      index = 0;
-      renderCard();
-    } catch (err) {
-      console.error(err);
-      noteEl.textContent = "シート読み込みエラー: " + err.message;
-    }
-  }
-
-  // ============================
-  // 4. SRSキュー作成（ここが今回の修正版）
-  // ============================
-
-  function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-  }
-
-  function getTodayQueue(allQuestions) {
-    const prog   = loadProgress();
-    const today  = todayStr();
-    const days   = getElapsedDays();
-    const phase  = getPhase(days);
-    const target = DAILY_TARGET;
-
-    const coreDue    = [];
-    const extraDue   = [];
-    const coreFresh  = [];
-    const extraFresh = [];
-
-    // due / fresh を core/extra で分類
-    for (const q of allQuestions) {
-      const p    = prog[q.id];
-      const core = isCore(q);
-
-      if (p && p.nextDue && p.nextDue <= today) {
-        (core ? coreDue : extraDue).push(q);       // 期限到来
-      } else if (!p) {
-        (core ? coreFresh : extraFresh).push(q);   // 初出題
-      }
-      // nextDue が未来のものは今日は出さない
-    }
-
-    shuffle(coreDue);
-    shuffle(extraDue);
-    shuffle(coreFresh);
-    shuffle(extraFresh);
-
-    const result = [];
-
-    const targetCore  = Math.round(target * phase.coreRatio);
-    const targetExtra = target - targetCore;
-
-    function takeFrom(arr, limit) {
-      while (limit > 0 && result.length < target && arr.length > 0) {
-        result.push(arr.shift());
-        limit--;
-      }
-      return limit;
-    }
-
-    // 1. core 枠
-    let needCore = targetCore;
-    needCore = takeFrom(coreDue, needCore);
-    needCore = takeFrom(coreFresh, needCore);
-
-    // 2. extra 枠
-    let needExtra = targetExtra;
-    needExtra = takeFrom(extraDue, needExtra);
-    needExtra = takeFrom(extraFresh, needExtra);
-
-    // 3. まだ足りなければ残りからなんでも
-    while (result.length < target) {
-      const pools = [coreDue, extraDue, coreFresh, extraFresh];
-      const nonEmpty = pools.filter((a) => a.length > 0);
-      if (nonEmpty.length === 0) break;
-      const arr = nonEmpty[0];
-      result.push(arr.shift());
-    }
-
-    // 4. 念のため target を超えたら切る
-    if (result.length > target) {
-      shuffle(result);
-      return result.slice(0, target);
-    }
-
-    shuffle(result);
-    return result;
-  }
-
-  function getCurrent() {
-    if (!queue || queue.length === 0) return null;
-    return queue[index] || null;
-  }
-
-  function getStageForQuestion(q) {
-    if (q.type !== "listen_en_to_jp") return 2;
-    const prog = loadProgress();
-    const p = prog[q.id];
-    const correctCount = p ? (p.correct || 0) : 0;
-    return correctCount >= 2 ? 2 : 1;
-  }
-
-  // ============================
-  // 5. 表示
-  // ============================
-
-  function clearChoices() {
-    while (choicesEl.firstChild) {
-      choicesEl.removeChild(choicesEl.firstChild);
-    }
-  }
-
-  function renderHeader() {
-    const prog = loadProgress();
-    const q = getCurrent();
-
-    dateInfoEl.textContent  = "今日：" + todayStr();
-    queueInfoEl.textContent = "今日の出題対象：" + queue.length +
-      "問 / 今：" + (index + 1) + "問目";
-    totalInfoEl.textContent =
-      "これまでの総解答数：" + getTotalAnswers() + "問";
-
-    if (q) {
-      const p = prog[q.id] || {};
-      const box     = p.box || 0;
-      const nextDue = p.nextDue || "未設定";
-      wordInfoEl.textContent =
-        `ID:${q.id}　カテゴリ:${q.category}　${p.correct ? "復習" : "初出題"} / box:${box} / 次回:${nextDue}`;
-    } else {
-      wordInfoEl.textContent = "";
-    }
-  }
-
-  function renderCard() {
-    const q = getCurrent();
-    if (!q) {
-      enHintEl.textContent = "";
-      clearChoices();
-      noteEl.textContent = "出題できる問題がありません。";
-      return;
-    }
-
-    renderHeader();
-    clearChoices();
-
-    const stage = getStageForQuestion(q);
-
-    let labelHtml = "";
-    let mainText  = "";
-
-    if (q.type === "listen_en_to_jp") {
-      if (stage === 1) {
-        labelHtml = "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
-        mainText  = "";
+      const p = prog[q.id];
+      if (!p) {
+        wordInfoEl.textContent =
+          `ID:${q.id}　カテゴリ:${q.category || ""}　初出題`;
       } else {
-        labelHtml = "👀 <b>英単語を「見て」、正しい日本語を選ぼう。</b>";
-        mainText  = q.en || q.audio_text || q.prompt_jp;
+        wordInfoEl.textContent =
+          `ID:${q.id}　カテゴリ:${q.category || ""}　` +
+          `正解:${p.correct || 0} / ミス:${p.wrong || 0} / 次回:${p.nextDue}`;
       }
-    } else if (q.type === "read_en_to_jp") {
-      labelHtml = "👀 <b>英文を読んで、正しい日本語を選ぼう。</b>";
-      mainText  = q.en || q.prompt_jp;
-    } else if (q.type === "read_jp_to_en") {
-      labelHtml = "👀 <b>日本語を読んで、正しい英文を選ぼう。</b>";
-      mainText  = q.jp || q.prompt_jp;
-    } else if (q.type === "fill_en_blank") {
-      labelHtml = "✏️ <b>空欄に入る正しい英語を選ぼう。</b>";
-      mainText  = q.prompt_jp;
-    } else if (q.type === "reorder_sentence") {
-      labelHtml = "🧩 <b>正しい語順を選ぼう。</b>";
-      mainText  = q.prompt_jp;
-    } else {
-      labelHtml = "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
-      mainText  = stage === 1 ? "" : (q.en || q.prompt_jp);
+
+      const total = getTotalAnswers();
+      totalInfoEl.textContent = "これまでの通算解答数：" + total + " 回";
     }
 
-    questionTextLabel.innerHTML = labelHtml;
-    enHintEl.textContent = mainText;
+    function clearChoices() {
+      choicesEl.innerHTML = "";
+    }
 
-    const indexedChoices = q.choices.map((text, idx) => ({
-      text,
-      index: idx,
-    }));
-    shuffle(indexedChoices);
+    function renderCard() {
+      const q = getCurrent();
+      if (!q) {
+        enHintEl.textContent = "";
+        clearChoices();
+        noteEl.textContent =
+          "出題できる問題がありません。シートのデータを確認してください。";
+        return;
+      }
+      renderHeader();
+      clearChoices();
 
-    indexedChoices.forEach((choice) => {
-      const btn = document.createElement("button");
-      btn.className = "choice-button";
-      btn.textContent = choice.text;
+      const mode  = getQuestionMode(q);
+      const stage = getStageForQuestion(q);  // listening の時だけ使用
 
-      btn.onclick = () => {
-        if (q.type === "listen_en_to_jp" && stage === 1) {
-          enHintEl.textContent =
-            q.en || q.audio_text || q.prompt_jp || "";
-        }
-
-        const correct = choice.index === q.correctIndex;
-
-        if (correct) {
-          btn.classList.add("correct");
-          updateResult(q.id, true);
-          renderHeader();
-          setTimeout(() => nextQuestion(), 700);
+      // 表示する英文/日本語を決定
+      let displayText = "";
+      let questionPrompt = "";
+      
+      if (mode === "reorder") {
+        // 並べ替え：正解文を表示
+        displayText = q.en || q.audio_text || "";
+        questionPrompt = "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
+        
+      } else if (mode === "phrase") {
+        // 最重要表現（英→日）：英文を表示
+        displayText = q.audio_text || q.en || "";
+        questionPrompt = "📘 <b>英文を読んで、正しい日本語を選ぼう。</b>";
+        
+      } else if (mode === "jp_to_en") {
+        // 日本語→英語：日本語の問題文を表示
+        displayText = q.prompt_jp || "";
+        questionPrompt = "🇯🇵 <b>問題を読んで、正しい英語を選ぼう。</b>";
+        
+      } else if (mode === "fill_blank") {
+        // 空欄補充：問題文を表示
+        displayText = q.prompt_jp || "";
+        questionPrompt = "✏️ <b>空欄に入る正しいものを選ぼう。</b>";
+        
+      } else {
+        // 通常のリスニング
+        if (stage === 1) {
+          displayText = "";  // ステップ1は英単語を隠す
+          questionPrompt = "👂 <b>音声を「聞いて」、正しい日本語を選ぼう。</b>";
         } else {
-          btn.classList.add("wrong");
-          updateResult(q.id, false);
-          queue.push(q); // 今日の最後にもう一度
-          alert("不正解… 正しい答えは「" + q.choices[q.correctIndex] + "」です。");
-          renderHeader();
+          displayText = q.en || q.audio_text || "";  // ステップ2は英単語を表示
+          questionPrompt = "👀 <b>英単語を「見て」、正しい日本語を選ぼう。</b>";
         }
-      };
+      }
 
-      choicesEl.appendChild(btn);
-    });
+      // ------- 表示を更新 --------
+      questionTextLabel.innerHTML = questionPrompt;
+      enHintEl.textContent = displayText;
+      
+      // 音声ボタンのラベル
+      if (mode === "jp_to_en" || mode === "fill_blank") {
+        audioBtn.textContent = "▶ 選択肢を聞く";  // 日→英や空欄補充は選択肢を読む
+      } else {
+        audioBtn.textContent = "▶ 英文を聞く";
+      }
 
-    noteEl.textContent = q.note ? "メモ：" + q.note : "";
-  }
+      // --- 選択肢の表示順だけランダム化 ---
+      const indexedChoices = q.choices.map((text, idx) => ({
+        text,
+        index: idx
+      }));
 
-  function nextQuestion() {
-    index++;
-    if (index >= queue.length) {
-      queue = getTodayQueue(questions);
-      index = 0;
-      alert("今日の分は一周しました。（間違えたものはまた出てきます）");
-    }
-    renderCard();
-  }
+      for (let i = indexedChoices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indexedChoices[i], indexedChoices[j]] =
+          [indexedChoices[j], indexedChoices[i]];
+      }
 
-  // ============================
-  // 6. 回答結果を更新
-  // ============================
+      let answered = false;
 
-  function updateResult(id, isCorrect) {
-    const prog = loadProgress();
-    if (!prog[id]) {
-      prog[id] = {
-        box: 0,
-        nextDue: todayStr(),
-        correct: 0,
-        wrong: 0,
-      };
-    }
-    const p = prog[id];
+      indexedChoices.forEach(choice => {
+        const btn = document.createElement("button");
+        btn.className = "choice-btn";
+        btn.textContent = choice.text;
 
-    if (isCorrect) {
-      p.correct = (p.correct || 0) + 1;
-      p.box = Math.min(p.box + 1, intervals.length - 1);
-    } else {
-      p.wrong = (p.wrong || 0) + 1;
-      p.box = 0;
-    }
+        btn.onclick = () => {
+          if (answered) return;
+          answered = true;
 
-    const days = intervals[p.box] || 1;
-    const next = new Date(todayStr());
-    next.setDate(next.getDate() + days);
-    const y = next.getFullYear();
-    const m = String(next.getMonth() + 1).padStart(2, "0");
-    const d = String(next.getDate()).padStart(2, "0");
-    p.nextDue = `${y}-${m}-${d}`;
+          // 答えた後、問題タイプに応じて適切な内容を表示
+          const mode = getQuestionMode(q);
+          if (mode === "listening" && stage === 1) {
+            // リスニング問題のステップ1：答えたら英単語を表示
+            enHintEl.textContent = q.en || q.audio_text || "";
+          } else if (mode === "jp_to_en" || mode === "fill_blank") {
+            // 日→英や空欄補充：正解を表示
+            enHintEl.textContent = q.choices[q.correctIndex] || "";
+          } else {
+            // その他：既に表示されているのでそのまま
+          }
 
-    saveProgress(prog);
-  }
-
-  // ============================
-  // 7. 音声
-  // ============================
-
-  function speak(text) {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = "en-US";
-    window.speechSynthesis.speak(uttr);
-  }
-
-  audioBtn.onclick = () => {
-    const q = getCurrent();
-    if (!q) return;
-    const text = q.audio_text || q.en || q.prompt_jp || "";
-    speak(text);
-  };
-
-  skipBtn.onclick = () => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    nextQuestion();
-  };
-
-  nextBtn.onclick = () => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    nextQuestion();
-  };
-
-  // ============================
-  // 8. 起動
-  // ============================
-  loadQuestionsFromSheet();
-
-
-  </script>
-</body>
-</html>
-
-
-
-
-
-
+          const correct = choice.index === 
