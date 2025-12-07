@@ -467,15 +467,22 @@
       if (p.box >= 3) return 2;
       return 1;
     }
-    function getQuestionMode(q) {
-      const type = (q.type || "").toLowerCase();
-      const cat = (q.category || "");
-      if (type.includes("reorder") || cat.includes("並べ替え")) return "reorder";
-      if (type.includes("jp_to_en")) return "jp_to_en";
-      if (type.includes("fill") || type.includes("blank")) return "fill_blank";
-      if (cat.includes("最重要表現")) return "phrase";
-      return "listening";
-    }
+ function getQuestionMode(q) {
+  const type = (q.type || "").toLowerCase();
+  const cat = (q.category || "");
+  
+  console.log(`getQuestionMode - ID:${q.id}, type:"${type}", category:"${cat}"`);
+  
+  // typeフィールドを優先的にチェック
+  if (type.includes("reorder")) {
+    console.log(`  → reorder判定`);
+    return "reorder";
+  }
+  if (type.includes("read_en_to_jp")) {
+    console.log(`  → read_en_to_jp判定`);
+    return "read_en_to_jp";
+  }
+  
     function renderHeader() {
       const days = getElapsedDays();
       const phase = getPhase(days);
@@ -747,3 +754,4 @@
   </script>
 </body>
 </html>
+
