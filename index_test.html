@@ -247,7 +247,8 @@
             id,
             category: row.category || "",
             prompt_jp: row.prompt_jp || "",
-            en: row.en || row.prompt_en || "",
+            prompt_en: row.prompt_en || "",  // prompt_enを追加
+            en: row.en || "",
             jp: row.jp || "",
             audio_text: cleanAudioText(row),
             choices,
