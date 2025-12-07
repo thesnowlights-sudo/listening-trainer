@@ -503,9 +503,10 @@
         displayText = q.prompt_en || q.audio_text || "";
         questionPrompt = "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
       } else if (mode === "phrase") {
-        displayText = q.audio_text || q.en || "";
-        questionPrompt = "📘 <b>英文を読んで、正しい日本語を選ぼう。</b>";
-      } else if (mode === "jp_to_en") {
+  displayText = q.prompt_en || q.audio_text || q.en || "";
+  questionPrompt = "📘 <b>英文を読んで、正しい日本語を選ぼう。</b>";
+}
+     else if (mode === "jp_to_en") {
         displayText = q.prompt_jp || "";
         questionPrompt = "🇯🇵 <b>問題を読んで、正しい英語を選ぼう。</b>";
       } else if (mode === "fill_blank") {
@@ -635,4 +636,5 @@
   </script>
 </body>
 </html>
+
 
