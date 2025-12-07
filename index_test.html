@@ -149,6 +149,18 @@
       <div class="status" id="totalInfo"></div>
       <div class="debug-block" id="debugInfo"></div>
       <div class="debug-block" id="debugIds"></div>
+      
+      <!-- デバッグモード用ID指定 -->
+      <div id="debugControl" style="display: none; margin-top: 12px; padding: 12px; background: #fff3cd; border-radius: 8px;">
+        <div style="font-size: 0.85rem; font-weight: bold; margin-bottom: 8px;">🔧 デバッグモード</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="prevIdBtn" style="flex: 0 0 40px; padding: 8px; font-size: 1rem;">◀</button>
+          <input type="number" id="debugIdInput" min="1" max="135" value="1" 
+                 style="flex: 1; padding: 8px; text-align: center; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px;">
+          <button id="nextIdBtn" style="flex: 0 0 40px; padding: 8px; font-size: 1rem;">▶</button>
+          <button id="goIdBtn" style="flex: 0 0 60px; padding: 8px; background: #28a745; color: white; border-radius: 4px;">移動</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -191,6 +203,15 @@
     const audioBtn = document.getElementById("audioBtn");
     const skipBtn = document.getElementById("skipBtn");
     const nextBtn = document.getElementById("nextBtn");
+    
+    // デバッグモード関連
+    const debugControl = document.getElementById("debugControl");
+    const debugIdInput = document.getElementById("debugIdInput");
+    const prevIdBtn = document.getElementById("prevIdBtn");
+    const nextIdBtn = document.getElementById("nextIdBtn");
+    const goIdBtn = document.getElementById("goIdBtn");
+    
+    let debugMode = false; // デバッグモードのフラグ
 
     async function loadQuestionsFromSheet() {
       try {
@@ -279,6 +300,11 @@
         console.log("8. renderCard呼び出し");
         renderCard();
         console.log("9. renderCard完了");
+        
+        // デバッグモード用：現在の問題IDを入力欄に反映
+        if (queue.length > 0) {
+          debugIdInput.value = queue[0].id;
+        }
       } catch (err) {
         console.error("エラー発生:", err);
         noteEl.textContent = "シート読み込みエラー: " + err.message;
@@ -614,7 +640,61 @@
       nextQuestion();
     };
 
-    // 起動確認
+    // デバッグモードの切り替え（Ctrl+Shift+D）
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        debugMode = !debugMode;
+        debugControl.style.display = debugMode ? 'block' : 'none';
+        if (debugMode) {
+          alert('デバッグモードON：特定のIDを表示できます');
+        } else {
+          alert('デバッグモードOFF');
+        }
+      }
+    });
+    
+    // ID指定で問題を表示
+    function goToQuestionId(targetId) {
+      const q = questions.find(q => q.id === targetId);
+      if (!q) {
+        alert(`ID ${targetId} の問題が見つかりません`);
+        return;
+      }
+      queue = [q];
+      index = 0;
+      debugIdsEl.textContent = `デバッグモード: ID ${targetId} を表示中`;
+      renderCard();
+    }
+    
+    // デバッグコントロールのイベント
+    prevIdBtn.onclick = () => {
+      const currentId = parseInt(debugIdInput.value);
+      if (currentId > 1) {
+        debugIdInput.value = currentId - 1;
+        goToQuestionId(currentId - 1);
+      }
+    };
+    
+    nextIdBtn.onclick = () => {
+      const currentId = parseInt(debugIdInput.value);
+      if (currentId < 135) {
+        debugIdInput.value = currentId + 1;
+        goToQuestionId(currentId + 1);
+      }
+    };
+    
+    goIdBtn.onclick = () => {
+      const targetId = parseInt(debugIdInput.value);
+      goToQuestionId(targetId);
+    };
+    
+    // Enterキーでも移動
+    debugIdInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const targetId = parseInt(debugIdInput.value);
+        goToQuestionId(targetId);
+      }
+    });
     console.log("アプリ起動開始");
     noteEl.textContent = "アプリを起動中...";
     debugInfoEl.textContent = "初期化中...";
