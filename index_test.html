@@ -542,10 +542,21 @@ function getQuestionMode(q) {
       if (mode === "reorder") {
   displayText = q.prompt_en || q.en || q.audio_text || "";
         questionPrompt = "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
-      } else if (mode === "phrase") {
-        displayText = q.audio_text || q.en || "";
-        questionPrompt = "📘 <b>英文を読んで、正しい日本語を選ぼう。</b>";
-      } else if (mode === "jp_to_en") {
+      } 
+     else if (mode === "phrase") {
+  // 青いところに出すのは英文
+  // まず prompt_en（あれば）→ なければ audio_text → en
+  displayText = q.prompt_en || q.audio_text || q.en || "";
+
+  // 見出し（灰色の日本語）は、問題ごとの prompt_jp を優先
+  if (q.prompt_jp) {
+    // 例: 「次の文で、彼女はどのくらい英語を勉強している？」
+    questionPrompt = `📘 <b>${q.prompt_jp}</b>`;
+  } else {
+    // 何もなければ従来通りの固定文
+    questionPrompt = "📘 <b>英文を読んで、正しい日本語を選ぼう。</b>";
+  
+}else if (mode === "jp_to_en") {
         displayText = q.prompt_jp || "";
         questionPrompt = "🇯🇵 <b>問題を読んで、正しい英語を選ぼう。</b>";
       } else if (mode === "fill_blank") {
@@ -761,6 +772,7 @@ function getQuestionMode(q) {
   </script>
 </body>
 </html>
+
 
 
 
