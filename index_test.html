@@ -548,6 +548,12 @@
       }
       questionTextLabel.innerHTML = questionPrompt;
       enHintEl.textContent = displayText;
+      
+      // 問題文がある場合は上部に表示
+      if (mode === "read_en_to_jp" && q.prompt_jp) {
+        questionTextLabel.innerHTML = questionPrompt + `<div style="margin-top: 8px; font-size: 0.85rem; color: #666;">${q.prompt_jp}</div>`;
+      }
+      
       if (mode === "jp_to_en" || mode === "fill_blank") {
         audioBtn.textContent = "▶ 選択肢を聞く";
       } else {
