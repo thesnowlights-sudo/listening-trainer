@@ -500,7 +500,7 @@
       let displayText = "";
       let questionPrompt = "";
       if (mode === "reorder") {
-        displayText = q.en || q.audio_text || "";
+        displayText = q.prompt_en || q.audio_text || "";
         questionPrompt = "📚 <b>英文を読んで、正しい語順を選ぼう。</b>";
       } else if (mode === "phrase") {
         displayText = q.audio_text || q.en || "";
@@ -635,3 +635,4 @@
   </script>
 </body>
 </html>
+
