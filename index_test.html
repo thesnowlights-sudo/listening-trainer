@@ -173,11 +173,13 @@
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=97402127&single=true&output=csv";
     const DAILY_TARGET = 15;
     const isCore = q => q.id <= 75;
-    const PHASES = [
-      { maxDay: 5, coreRatio: 0.85 },
-      { maxDay: 12, coreRatio: 0.65 },
-      { maxDay: 999, coreRatio: 0.4 }
-    ];
+const PHASES = [
+  { maxDay: 2, coreRatio: 1.0 },    // 1〜3日目：Core100%
+  { maxDay: 7, coreRatio: 0.85 },   // 4〜7日目：Core85%
+  { maxDay: 14, coreRatio: 0.65 },  // 8〜14日目：Core65%
+  { maxDay: 21, coreRatio: 0.5 },   // 15〜21日目：Core50%
+  { maxDay: 999, coreRatio: 0.3 }   // 22日目以降：Core30%
+];
 
     function getPhase(days) {
       for (const p of PHASES) {
@@ -577,16 +579,24 @@ if (mode === "reorder") {
       questionTextLabel.innerHTML = questionPrompt;
       enHintEl.textContent = displayText;
       
-      // 問題文がある場合は上部に表示
-      if (mode === "read_en_to_jp" && q.prompt_jp) {
-        questionTextLabel.innerHTML = questionPrompt + `<div style="margin-top: 8px; font-size: 0.85rem; color: #666;">${q.prompt_jp}</div>`;
-      }
+  // ========== ここから差し替え ==========
+      
+      // 音声ボタンの状態を設定
+      const hasAudio = q.audio_text && q.audio_text !== "-" && q.audio_text.trim() !== "";
       
       if (mode === "jp_to_en" || mode === "fill_blank") {
-        audioBtn.textContent = "▶ 選択肢を聞く";
+        audioBtn.textContent = "▶ 音声なし";
+        audioBtn.disabled = true;
+        audioBtn.style.opacity = "0.5";
+        audioBtn.style.cursor = "not-allowed";
       } else {
-        audioBtn.textContent = "▶ 英文を聞く";
+        audioBtn.textContent = hasAudio ? "▶ 英文を聞く" : "▶ 音声なし";
+        audioBtn.disabled = !hasAudio;
+        audioBtn.style.opacity = hasAudio ? "1" : "0.5";
+        audioBtn.style.cursor = hasAudio ? "pointer" : "not-allowed";
       }
+      
+// ========== ここまで差し替え ==========
       const indexedChoices = q.choices.map((text, idx) => ({ text, index: idx }));
       for (let i = indexedChoices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -638,31 +648,30 @@ if (mode === "reorder") {
       renderCard();
     }
 
+  // ========== ここから差し替え ==========
     audioBtn.onclick = () => {
       const q = getCurrent();
-      if (!q) return;
+      if (!q || audioBtn.disabled) return;
       if (!("speechSynthesis" in window)) {
         alert("このブラウザは読み上げに対応していません。");
         return;
       }
+      
       window.speechSynthesis.cancel();
-      const mode = getQuestionMode(q);
-      let text = "";
-      if (mode === "jp_to_en" || mode === "fill_blank") {
-        text = q.choices[q.correctIndex] || "";
-      } else {
-        text = q.audio_text || q.en || "";
-      }
+      const text = q.audio_text || q.en || "";
+      
       if (!text || text === "-" || text.trim() === "") {
         alert("この問題には音声がありません。");
         return;
       }
+      
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "en-US";
       u.rate = 1.0;
       u.pitch = 1.0;
       window.speechSynthesis.speak(u);
     };
+// ========== ここまで差し替え ==========
 
     skipBtn.onclick = () => {
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -775,6 +784,7 @@ if (mode === "reorder") {
   </script>
 </body>
 </html>
+
 
 
 
