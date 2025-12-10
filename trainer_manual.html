@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英語リスニング単語トレーナー 使い方ガイド</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.8;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #333;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    a {
+      color: #1976d2;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    h1 {
+      color: #1565c0;
+      border-bottom: 3px solid #1565c0;
+      padding-bottom: 10px;
+      font-size: 1.8rem;
+    }
+    h2 {
+      color: #1976d2;
+      margin-top: 30px;
+      font-size: 1.4rem;
+      border-left: 4px solid #1976d2;
+      padding-left: 12px;
+    }
+    h3 {
+      color: #555;
+      margin-top: 20px;
+      font-size: 1.1rem;
+    }
+    .highlight {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #ffc107;
+      margin: 15px 0;
+    }
+    .tip {
+      background: #d1ecf1;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #17a2b8;
+      margin: 15px 0;
+    }
+    .warning {
+      background: #f8d7da;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #dc3545;
+      margin: 15px 0;
+    }
+    .button-demo {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #1976d2;
+      color: white;
+      border-radius: 6px;
+      margin: 5px;
+      font-weight: bold;
+    }
+    .button-demo.secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    ul, ol {
+      margin: 10px 0;
+      padding-left: 25px;
+    }
+    li {
+      margin: 8px 0;
+    }
+    .step {
+      background: #f8f9ff;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: #1976d2;
+      color: white;
+    }
+    .emoji {
+      font-size: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📚 英語リスニング単語トレーナー 使い方ガイド</h1>
+    
+    <div class="highlight">
+      <strong>このアプリについて</strong><br>
+      埼玉県公立高校入試の英語リスニング対策に特化した学習アプリです。<br>
+      よく出る「数字・場所・動詞・疑問詞」など135問を、科学的に効率よく覚えられます。
+    </div>
+
+    <h2>📑 目次</h2>
+    <div class="step">
+      <ul style="list-style: none; padding-left: 0;">
+        <li><a href="#features">🎯 このアプリの特徴</a></li>
+        <li><a href="#interface">📱 画面の見方と使い方</a></li>
+        <li><a href="#howto">✨ 使い方（基本編）</a></li>
+        <li><a href="#question-types">🎮 問題のタイプ</a></li>
+        <li><a href="#advanced">⚙️ 便利な機能</a></li>
+        <li><a href="#faq">❓ よくある質問</a></li>
+        <li><a href="#parents">📊 保護者の方へ</a></li>
+      </ul>
+    </div>
+
+    <h2 id="features">🎯 このアプリの特徴</h2>
+    
+    <h3>1. 間隔反復学習（SRS）で効率的に記憶</h3>
+    <p>一度覚えた単語は、忘れかけたタイミングで再び出題されます。これにより、短時間で確実に記憶に定着させることができます。</p>
+    
+    <div class="step">
+      <strong>復習のタイミング</strong>
+      <ul>
+        <li>✅ 正解 → 1日後、2日後、5日後...と間隔が広がる</li>
+        <li>❌ 不正解 → すぐに再出題される</li>
+      </ul>
+    </div>
+
+    <h3>2. 2段階学習システム</h3>
+    <table>
+      <tr>
+        <th>ステップ</th>
+        <th>学習方法</th>
+        <th>目的</th>
+      </tr>
+      <tr>
+        <td><strong>ステップ1</strong></td>
+        <td>👂 音声を聞いて答える</td>
+        <td>リスニング力を鍛える</td>
+      </tr>
+      <tr>
+        <td><strong>ステップ2</strong></td>
+        <td>👀 英単語を見て答える</td>
+        <td>読解力も同時に強化</td>
+      </tr>
+    </table>
+    <p><small>※3回正解すると自動的にステップ2に進みます</small></p>
+
+    <h3>3. 段階的な出題配分</h3>
+    <p>学習日数に応じて、Core問題（最重要75問）とExtra問題（応用60問）の出題バランスが自動調整されます。</p>
+    
+    <table>
+      <tr>
+        <th>学習期間</th>
+        <th>Core問題</th>
+        <th>Extra問題</th>
+      </tr>
+      <tr>
+        <td>1〜2日目</td>
+        <td>100%</td>
+        <td>0%</td>
+      </tr>
+      <tr>
+        <td>3〜7日目</td>
+        <td>85%</td>
+        <td>15%</td>
+      </tr>
+      <tr>
+        <td>8〜14日目</td>
+        <td>65%</td>
+        <td>35%</td>
+      </tr>
+      <tr>
+        <td>15〜21日目</td>
+        <td>50%</td>
+        <td>50%</td>
+      </tr>
+      <tr>
+        <td>22日目以降</td>
+        <td>30%</td>
+        <td>70%</td>
+      </tr>
+    </table>
+
+    <h2 id="interface">📱 画面の見方と使い方</h2>
+
+    <h3>基本画面</h3>
+    <div class="step">
+      <strong>上部：問題表示エリア</strong>
+      <ul>
+        <li><span class="emoji">🧠</span> 問題の指示（灰色の文字）</li>
+        <li><span style="color: #1565c0; font-weight: bold;">青い文字</span> = 英文表示エリア（ステップ2で表示）</li>
+        <li>選択肢ボタン（4択）</li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <strong>中部：操作ボタン</strong>
+      <ul>
+        <li><span class="button-demo">▶ 英文を聞く</span> 音声を再生（何度でもOK）</li>
+        <li><span class="button-demo secondary">スキップ</span> 問題をスキップ</li>
+        <li><span class="button-demo secondary">次へ進む</span> 次の問題へ</li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <strong>下部：学習状況</strong>
+      <ul>
+        <li>今日の日付と学習日数</li>
+        <li>今日の出題対象数</li>
+        <li>現在の問題の成績（正解数・ミス数・次回出題日）</li>
+        <li>これまでの通算解答数</li>
+      </ul>
+    </div>
+
+    <h2 id="howto">✨ 使い方（基本編）</h2>
+
+    <h3>初めて使うとき</h3>
+    <ol>
+      <li>ブラウザ（Safari、Chrome等）でアプリを開く</li>
+      <li>自動的にデータが読み込まれ、今日の15問が出題される</li>
+      <li><span class="button-demo">▶ 英文を聞く</span> をタップして音声を聞く</li>
+      <li>正しいと思う選択肢をタップ</li>
+      <li>正解なら<span style="color: #2e7d32; font-weight: bold;">緑色</span>、不正解なら<span style="color: #c62828; font-weight: bold;">赤色</span>に変わる</li>
+    </ol>
+
+    <h3>毎日の学習</h3>
+    <ol>
+      <li>アプリを開くと、自動的に「今日やるべき問題」が出題される</li>
+      <li>1日15問を目安に学習（約5〜10分）</li>
+      <li>全問終わると「一周しました」と表示される</li>
+      <li>間違えた問題は同じ日に再出題される</li>
+    </ol>
+
+    <div class="tip">
+      <strong>💡 効果的な学習方法</strong>
+      <ul>
+        <li>毎日続けることが最も重要！</li>
+        <li>音声は聞こえるまで何度でも再生してOK</li>
+        <li>不正解でも落ち込まない。繰り返せば必ず覚えられます</li>
+        <li>通学中やスキマ時間の活用がおすすめ</li>
+      </ul>
+    </div>
+
+    <h2 id="question-types">🎮 問題のタイプ</h2>
+
+    <h3>1. リスニング問題（listen_en_to_jp）</h3>
+    <p><strong>👂 音声を「聞いて」、正しい日本語を選ぼう。</strong></p>
+    <ul>
+      <li>ステップ1：音声のみ（英文は表示されない）</li>
+      <li>ステップ2：英単語も表示される</li>
+    </ul>
+
+    <h3>2. 読解問題（read_en_to_jp）</h3>
+    <p><strong>📘 英文を読んで、正しい日本語を選ぼう。</strong></p>
+    <ul>
+      <li>青い文字で英文が表示される</li>
+      <li>音声も利用可能</li>
+    </ul>
+
+    <h3>3. 英作問題（read_jp_to_en）</h3>
+    <p><strong>🇯🇵 問題を読んで、正しい英語を選ぼう。</strong></p>
+    <ul>
+      <li>日本語の問題が表示される</li>
+      <li>音声ボタンは無効（音声なし）</li>
+    </ul>
+
+    <h3>4. 穴埋め問題（fill_en_blank）</h3>
+    <p><strong>✏️ 空欄に入る正しいものを選ぼう。</strong></p>
+    <ul>
+      <li>文中の空欄に適切な語句を選ぶ</li>
+      <li>音声ボタンは無効（音声なし）</li>
+    </ul>
+
+    <h3>5. 並べ替え問題（reorder）</h3>
+    <p><strong>📚 英文を読んで、正しい語順を選ぼう。</strong></p>
+    <ul>
+      <li>バラバラの語句を正しい順序に並べた文を選ぶ</li>
+    </ul>
+
+    <h2 id="advanced">⚙️ 便利な機能</h2>
+
+    <h3>デバッグモード（上級者向け）</h3>
+    <div class="step">
+      <strong>起動方法：</strong>
+      <ul>
+        <li>PC：<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd></li>
+        <li>スマホ：スキップボタンを素早く3回タップ</li>
+      </ul>
+      <strong>できること：</strong>
+      <ul>
+        <li>特定のID番号の問題を表示</li>
+        <li>苦手な問題を集中的に練習</li>
+      </ul>
+    </div>
+
+    <h2 id="faq">❓ よくある質問</h2>
+
+    <h3>Q1. 音声が出ないのですが？</h3>
+    <p><strong>A.</strong> 以下を確認してください：</p>
+    <ul>
+      <li>端末の音量がオフになっていないか</li>
+      <li>マナーモードになっていないか</li>
+      <li>「▶ 音声なし」と表示されている問題は音声がありません</li>
+    </ul>
+
+    <h3>Q2. 進捗が消えてしまいました</h3>
+    <p><strong>A.</strong> 進捗は端末のブラウザに保存されています。以下の場合、データが消えます：</p>
+    <ul>
+      <li>ブラウザのキャッシュやCookieを削除した</li>
+      <li>別の端末でアクセスした</li>
+      <li>別のブラウザを使った</li>
+    </ul>
+    <div class="warning">
+      <strong>⚠️ 重要</strong><br>
+      <strong>同じ端末・同じブラウザ</strong>で続けることが大切です！
+    </div>
+
+    <h3>Q3. 1日に何問やればいいですか？</h3>
+    <p><strong>A.</strong> 基本は1日15問（約5〜10分）です。もっとやりたい場合は、一周後も続けてOKです！</p>
+
+    <h3>Q4. 間違えた問題がすぐ出てきます</h3>
+    <p><strong>A.</strong> これは正常な動作です。間違えた問題は、その日のうちに何度も出題されます。正解できるまで頑張りましょう！</p>
+
+    <h3>Q5. 全問正解したら終わりですか？</h3>
+    <p><strong>A.</strong> いいえ。一度覚えた単語も、忘れないように定期的に復習問題として出題されます。入試まで続けましょう！</p>
+
+    <h2 id="parents">📊 保護者の方へ</h2>
+
+    <h3>学習効果を高めるために</h3>
+    <div class="tip">
+      <strong>💡 より効果的な学習をサポートするポイント</strong>
+      <ul>
+        <li><strong>学習時間の固定化</strong>：毎日同じ時間に学習することで習慣化しやすくなります（例：朝食後、寝る前など）</li>
+        <li><strong>集中できる環境づくり</strong>：音声を聞く学習なので、静かな場所を確保してあげてください</li>
+        <li><strong>短時間×高頻度</strong>：1日30分を週2回より、5分を毎日の方が記憶に定着しやすい特性があります</li>
+        <li><strong>継続の可視化</strong>：「通算解答数」や「学習○日目」の数字が増えることで、達成感を実感できます</li>
+      </ul>
+    </div>
+
+    <h3>間隔反復学習（SRS）について</h3>
+    <p>このアプリは「エビングハウスの忘却曲線」に基づいた科学的な学習法を採用しています。</p>
+    <ul>
+      <li>正解した問題は、忘れかけるタイミング（1日後→2日後→5日後...）で再出題</li>
+      <li>不正解の問題は即座に復習し、記憶の定着を図る</li>
+      <li>この繰り返しにより、最小限の学習時間で最大限の記憶定着が可能</li>
+    </ul>
+
+    <h3>データのバックアップについて</h3>
+    <div class="warning">
+      <strong>⚠️ 注意</strong><br>
+      このアプリは端末のブラウザにデータを保存しています。以下の点にご注意ください：
+      <ul>
+        <li>ブラウザのデータを削除すると進捗が消えます</li>
+        <li>端末の機種変更では引き継げません</li>
+        <li><strong>同じ端末・同じブラウザで継続することが重要です</strong></li>
+        <li>Wi-Fi環境がなくても使用できます（初回読み込み後はオフラインOK）</li>
+      </ul>
+    </div>
+
+    <h2>📞 お問い合わせ・フィードバック</h2>
+    <p>このアプリに関するご質問やご要望がありましたら、作成者にお知らせください。</p>
+
+    <div class="highlight" style="margin-top: 30px; text-align: center;">
+      <strong style="font-size: 1.2em;">🌟 毎日コツコツ、入試本番で結果を出そう！ 🌟</strong>
+    </div>
+
+  </div>
+</body>
+</html>
