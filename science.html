@@ -426,13 +426,11 @@
         }
       });
 
-      var q = questions[currentIndex];
+    var q = questions[currentIndex];
       if ((q.explanation && q.explanation.trim() !== "") ||
-          (q.explanationImage && q.explanationImage.trim() !== "")) {
+          (q.explanationImage && q.explanationImage.trim() !== "") ||
+          (q.referenceUrl && q.referenceUrl.trim() !== "")) {
         explainBtn.style.display = "inline-block";
-        explainBtn.textContent = "解説を見る";
-      }
-      nextBtn.style.display = "inline-block";
 
       updateStats();
       updateDebugView();
@@ -463,6 +461,12 @@
           html += '<div class="explain-image"><img src="' +
                   q.explanationImage +
                   '" alt="explanation image"></div>';
+        }
+        if (q.referenceUrl && q.referenceUrl.trim() !== "") {
+          html += '<div style="margin-top:8px;"><strong>📎 参考URL:</strong><br>' +
+                  '<a href="' + q.referenceUrl + '" target="_blank" rel="noopener noreferrer" ' +
+                  'style="color:#1976d2;text-decoration:underline;">' +
+                  q.referenceUrl + '</a></div>';
         }
         if (!html) {
           html = "解説は登録されていません。";
@@ -532,4 +536,5 @@
   </script>
 </body>
 </html>
+
 
