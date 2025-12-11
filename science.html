@@ -199,7 +199,7 @@
   </div>
 
   <script>
-    // ★ ここだけ自分のシートに変えればOK
+    // ★ あなたのシートの CSV URL（そのままでOK）
     var CSV_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=305193808&single=true&output=csv";
 
@@ -475,7 +475,7 @@
       }
     }
 
-    // ★ デバッグ表示更新（英語版の debug view 的なやつ）
+    // デバッグ表示更新
     function updateDebugView() {
       if (!debugMode || currentIndex < 0 || !questions[currentIndex]) {
         debugBox.style.display = "none";
@@ -499,7 +499,7 @@
     explainBtn.addEventListener("click", toggleExplanation);
     nextBtn.addEventListener("click", showRandomQuestion);
 
-    // ★ キーボード操作（英語版と同じノリ）
+    // キーボード操作（デバッグ）
     window.addEventListener("keydown", function (e) {
       // Ctrl+Shift+Z → デバッグON/OFF
       if (e.ctrlKey && e.shiftKey && (e.key === "z" || e.key === "Z")) {
