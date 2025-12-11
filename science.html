@@ -149,6 +149,17 @@
       color: #555;
       margin-top: 4px;
     }
+    /* デバッグ表示 */
+    #debugBox {
+      display: none;
+      background: #111;
+      color: #0f0;
+      font-size: 0.75rem;
+      padding: 6px 8px;
+      margin-top: 8px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+    }
 
     @media (max-width: 480px) {
       h1 {
@@ -181,19 +192,23 @@
       </div>
       <div class="explanation-box" id="explanationBox"></div>
       <div class="stats" id="statsText"></div>
+
+      <!-- ★ デバッグ表示領域（Ctrl+Shift+Z で表示/非表示） -->
+      <div id="debugBox"></div>
     </div>
   </div>
 
   <script>
-    // ★ 裏側で固定しておく Google Sheets CSV の URL
-    var DEFAULT_CSV_URL =
+    // ★ ここだけ自分のシートに変えればOK
+    var CSV_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=305193808&single=true&output=csv";
 
-    // データと状態
+    // データ
     var questions = [];
-    var currentQuestion = null;
-    var currentShuffle = [];         // 選択肢の並び（元の index の配列）
-    var currentCorrectBtnIndex = 0;  // 並び替え後で何番が正解か
+    var currentIndex = -1;          // questions の中で今どの問題か
+    var currentShuffle = [];        // 選択肢の並び
+    var correctButtonIndex = 0;     // 並び替え後、何番ボタンが正解か
+
     var answeredCount = 0;
     var correctCount = 0;
 
@@ -210,19 +225,23 @@
     var nextBtn        = document.getElementById("nextBtn");
     var explanationBox = document.getElementById("explanationBox");
     var statsText      = document.getElementById("statsText");
+    var debugBox       = document.getElementById("debugBox");
+
+    // デバッグ状態
+    var debugMode = false;
 
     function setStatus(msg) {
       statusText.textContent = msg;
     }
 
-    // ざっくり CSV を分割（タブ or カンマ）
+    // 簡易CSVパース（タブ or カンマ）
     function parseSeparatedLine(line, delimiter) {
       return line.split(delimiter).map(function (part) {
         return part.trim();
       });
     }
 
-    // 配列シャッフル（Fisher–Yates）
+    // シャッフル（Fisher–Yates）
     function shuffleArray(arr) {
       for (var i = arr.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
@@ -280,14 +299,13 @@
             if (idx.choice2 >= 0) choices.push(cols[idx.choice2] || "");
             if (idx.choice3 >= 0) choices.push(cols[idx.choice3] || "");
             if (idx.choice4 >= 0) choices.push(cols[idx.choice4] || "");
-
-            if (choices.length === 0) continue; // 選択肢ゼロはスキップ
+            if (choices.length === 0) continue;
 
             var correctIndex = 0;
             if (cols[idx.correct]) {
               var n = parseInt(cols[idx.correct], 10);
               if (!isNaN(n) && n >= 1 && n <= choices.length) {
-                correctIndex = n - 1; // 0始まりに修正
+                correctIndex = n - 1; // 0始まり
               }
             }
 
@@ -311,19 +329,12 @@
           correctCount = 0;
           quizCard.style.display = "block";
           setStatus("読み込み完了：問題数 " + questions.length + " 問");
-          showNextQuestion();
+          showRandomQuestion();
         })
         .catch(function (err) {
           setStatus("読み込みエラー: " + err.message);
           quizCard.style.display = "none";
         });
-    }
-
-    // ランダムに1問選ぶだけ（シンプル）
-    function pickRandomQuestion() {
-      if (!questions || questions.length === 0) return null;
-      var index = Math.floor(Math.random() * questions.length);
-      return questions[index];
     }
 
     function clearQuestionUI() {
@@ -340,41 +351,50 @@
       nextBtn.style.display = "none";
     }
 
-    function showNextQuestion() {
+    // ランダムで1問
+    function showRandomQuestion() {
+      if (!questions || questions.length === 0) return;
+      var idx = Math.floor(Math.random() * questions.length);
+      showQuestionByIndex(idx);
+    }
+
+    // index 指定で1問表示（デバッグの矢印でも使用）
+    function showQuestionByIndex(idx) {
+      if (!questions || questions.length === 0) return;
+      if (idx < 0) idx = 0;
+      if (idx >= questions.length) idx = questions.length - 1;
+
+      currentIndex = idx;
+      var q = questions[currentIndex];
       clearQuestionUI();
-      currentQuestion = pickRandomQuestion();
-      if (!currentQuestion) {
-        questionText.textContent = "出題できる問題が見つかりませんでした。";
-        return;
-      }
 
-      questionCategory.textContent = currentQuestion.category || "";
-      questionText.textContent = currentQuestion.question;
+      questionCategory.textContent = q.category || "";
+      questionText.textContent = q.question;
 
-      if (currentQuestion.image) {
+      if (q.image) {
         imageBox.style.display = "block";
-        questionImage.src = currentQuestion.image;
+        questionImage.src = q.image;
       }
 
-      // 選択肢の並びをランダムに決める
-      var n = currentQuestion.choices.length;
+      // 選択肢をランダム並びにする
+      var n = q.choices.length;
       var indices = [];
       for (var i = 0; i < n; i++) indices.push(i);
-      currentShuffle = shuffleArray(indices);
-      currentCorrectBtnIndex = currentShuffle.indexOf(currentQuestion.correctIndex); // このボタン番号が正解
+      currentShuffle = shuffleArray(indices.slice());
+      correctButtonIndex = currentShuffle.indexOf(q.correctIndex);
 
-      // ボタン生成
       for (var b = 0; b < n; b++) {
         var choiceIdx = currentShuffle[b];
         var btn = document.createElement("button");
         btn.className = "choice-btn";
-        btn.textContent = (b + 1) + ". " + currentQuestion.choices[choiceIdx];
-        btn.dataset.index = String(b); // 並び後の番号
+        btn.textContent = (b + 1) + ". " + q.choices[choiceIdx];
+        btn.dataset.index = String(b); // 並び後 index
         btn.addEventListener("click", onChoiceClick);
         choicesBox.appendChild(btn);
       }
 
       updateStats();
+      updateDebugView();
     }
 
     function onChoiceClick(event) {
@@ -382,41 +402,39 @@
       var selectedBtnIndex = parseInt(btn.dataset.index, 10);
 
       var buttons = choicesBox.querySelectorAll("button");
-      buttons.forEach(function (b) {
-        b.disabled = true;
-      });
+      buttons.forEach(function (b) { b.disabled = true; });
 
       answeredCount += 1;
-      var isCorrect = (selectedBtnIndex === currentCorrectBtnIndex);
+      var isCorrect = (selectedBtnIndex === correctButtonIndex);
       if (isCorrect) {
         correctCount += 1;
         resultText.textContent = "⭕ 正解！";
         resultText.className = "result-text correct";
       } else {
-        var correctNo = currentCorrectBtnIndex + 1; // 表示上の番号
+        var correctNo = correctButtonIndex + 1;
         resultText.textContent = "❌ 不正解…　正解は「" + correctNo + "番」です。";
         resultText.className = "result-text incorrect";
       }
 
-      // ボタンの色付け
       buttons.forEach(function (b) {
         var idx = parseInt(b.dataset.index, 10);
-        if (idx === currentCorrectBtnIndex) {
+        if (idx === correctButtonIndex) {
           b.classList.add("correct");
         } else if (idx === selectedBtnIndex) {
           b.classList.add("incorrect");
         }
       });
 
-      // 解説ボタン／次の問題ボタン
-      if ((currentQuestion.explanation && currentQuestion.explanation.trim() !== "") ||
-          (currentQuestion.explanationImage && currentQuestion.explanationImage.trim() !== "")) {
+      var q = questions[currentIndex];
+      if ((q.explanation && q.explanation.trim() !== "") ||
+          (q.explanationImage && q.explanationImage.trim() !== "")) {
         explainBtn.style.display = "inline-block";
         explainBtn.textContent = "解説を見る";
       }
       nextBtn.style.display = "inline-block";
 
       updateStats();
+      updateDebugView();
     }
 
     function updateStats() {
@@ -432,15 +450,17 @@
     }
 
     function toggleExplanation() {
-      if (!currentQuestion) return;
+      if (currentIndex < 0) return;
+      var q = questions[currentIndex];
+
       if (explanationBox.style.display === "none") {
         var html = "";
-        if (currentQuestion.explanation && currentQuestion.explanation.trim() !== "") {
-          html += currentQuestion.explanation.replace(/\n/g, "<br>");
+        if (q.explanation && q.explanation.trim() !== "") {
+          html += q.explanation.replace(/\n/g, "<br>");
         }
-        if (currentQuestion.explanationImage && currentQuestion.explanationImage.trim() !== "") {
+        if (q.explanationImage && q.explanationImage.trim() !== "") {
           html += '<div class="explain-image"><img src="' +
-                  currentQuestion.explanationImage +
+                  q.explanationImage +
                   '" alt="explanation image"></div>';
         }
         if (!html) {
@@ -455,13 +475,58 @@
       }
     }
 
-    // イベント
-    explainBtn.addEventListener("click", toggleExplanation);
-    nextBtn.addEventListener("click", showNextQuestion);
+    // ★ デバッグ表示更新（英語版の debug view 的なやつ）
+    function updateDebugView() {
+      if (!debugMode || currentIndex < 0 || !questions[currentIndex]) {
+        debugBox.style.display = "none";
+        debugBox.textContent = "";
+        return;
+      }
+      var q = questions[currentIndex];
+      var correctChoice = q.choices[q.correctIndex] || "";
+      debugBox.style.display = "block";
+      debugBox.textContent =
+        "DEBUG (Ctrl+Shift+Z で切替 / ← → で移動)\n" +
+        "index: " + currentIndex + " / " + (questions.length - 1) + "\n" +
+        "id: " + q.id + "\n" +
+        "category: " + q.category + "\n" +
+        "correctIndex(original): " + (q.correctIndex + 1) +
+          " [" + correctChoice + "]\n" +
+        "choices: " + JSON.stringify(q.choices);
+    }
 
-    // ページ表示時に自動読み込み
+    // ボタンイベント
+    explainBtn.addEventListener("click", toggleExplanation);
+    nextBtn.addEventListener("click", showRandomQuestion);
+
+    // ★ キーボード操作（英語版と同じノリ）
+    window.addEventListener("keydown", function (e) {
+      // Ctrl+Shift+Z → デバッグON/OFF
+      if (e.ctrlKey && e.shiftKey && (e.key === "z" || e.key === "Z")) {
+        debugMode = !debugMode;
+        updateDebugView();
+        return;
+      }
+      if (!debugMode) return; // デバッグOFFなら何もしない
+
+      if (e.key === "ArrowRight") {
+        // 次の問題へ（配列順）
+        if (!questions || questions.length === 0) return;
+        var next = currentIndex + 1;
+        if (next >= questions.length) next = 0;
+        showQuestionByIndex(next);
+      } else if (e.key === "ArrowLeft") {
+        // 前の問題へ
+        if (!questions || questions.length === 0) return;
+        var prev = currentIndex - 1;
+        if (prev < 0) prev = questions.length - 1;
+        showQuestionByIndex(prev);
+      }
+    });
+
+    // ページ読み込み時に自動でCSV読込
     window.addEventListener("load", function () {
-      loadCsvFromUrl(DEFAULT_CSV_URL);
+      loadCsvFromUrl(CSV_URL);
     });
   </script>
 </body>
