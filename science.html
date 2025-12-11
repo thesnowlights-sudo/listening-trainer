@@ -25,9 +25,15 @@
       font-size: 0.85rem;
       text-align: center;
       color: #666;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
-    .status-box, .card {
+    .status-text {
+      font-size: 0.8rem;
+      color: #555;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .card {
       background: #ffffff;
       border-radius: 12px;
       padding: 12px;
@@ -51,18 +57,6 @@
     button:disabled {
       opacity: 0.5;
       cursor: default;
-    }
-    .status-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .status-text {
-      font-size: 0.8rem;
-      color: #555;
-      word-break: break-all;
     }
     .question-category {
       font-size: 0.85rem;
@@ -148,10 +142,6 @@
         width: 100%;
         text-align: center;
       }
-      .status-row {
-        flex-direction: column;
-        align-items: flex-start;
-      }
     }
   </style>
 </head>
@@ -159,15 +149,7 @@
   <div class="container">
     <h1>理科トレーナー</h1>
     <div class="subtitle">埼玉県公立高校入試対策（間隔反復＆4択クイズ）</div>
-
-    <div class="status-box">
-      <div class="status-row">
-        <div class="status-text" id="statusText">
-          問題データを読み込んでいます…
-        </div>
-        <button id="reloadBtn">問題を再読み込み</button>
-      </div>
-    </div>
+    <div class="status-text" id="statusText">問題データを読み込んでいます…</div>
 
     <div class="card" id="quizCard" style="display:none;">
       <div class="question-category" id="questionCategory"></div>
@@ -187,7 +169,7 @@
   </div>
 
   <script>
-    // ====== ★ 固定のCSV URL（ここだけ差し替えればOK） ======
+    // ====== ★ 固定のCSV URL（裏側専用） ======
     var DEFAULT_CSV_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=305193808&single=true&output=csv";
 
@@ -200,7 +182,6 @@
     var storageKey = "";
 
     // ====== DOM要素 ======
-    var reloadBtn      = document.getElementById("reloadBtn");
     var statusText     = document.getElementById("statusText");
     var quizCard       = document.getElementById("quizCard");
     var questionCategory = document.getElementById("questionCategory");
@@ -269,22 +250,24 @@
           }
 
           var header = parseSeparatedLine(lines[0], delimiter);
-          var idx = {
-            id: header.indexOf("id"),
-            category: header.indexOf("category"),
-            question: header.indexOf("question"),
-            choice1: header.indexOf("choice1"),
-            choice2: header.indexOf("choice2"),
-            choice3: header.indexOf("choice3"),
-            choice4: header.indexOf("choice4"),
-            correct: header.indexOf("correct"),
-            image: header.indexOf("image"),
-            explanation: header.indexOf("explanation"),
-            note: header.indexOf("note")
-          };
 
-          if (idx.id === -1 || idx.question === -1 || idx.choice1 === -1 || idx.correct === -1) {
-            throw new Error("ヘッダー行が足りません（id, question, choice1, correct は必須）");
+          var idIndex         = header.indexOf("id");
+          var categoryIndex   = header.indexOf("category");
+          var questionIndex   = header.indexOf("question");
+          var correctIndex    = header.indexOf("correct");
+          var imageIndex      = header.indexOf("image");
+          var explanationIndex= header.indexOf("explanation");
+          var noteIndex       = header.indexOf("note");
+
+          if (idIndex === -1 || questionIndex === -1 || correctIndex === -1) {
+            throw new Error("ヘッダー行が足りません（id, question, correct は必須）");
+          }
+
+          // question と correct のあいだの列を「すべて選択肢」とみなす
+          var choiceStart = questionIndex + 1;
+          var choiceEnd   = correctIndex; // correct の直前まで
+          if (choiceEnd - choiceStart < 1) {
+            throw new Error("選択肢の列が見つかりません。question と correct の間に choice 列を置いてください。");
           }
 
           var result = [];
@@ -292,27 +275,34 @@
             var line = lines[i];
             if (!line.trim()) continue;
             var cols = parseSeparatedLine(line, delimiter);
+
             var q = {
-              id: cols[idx.id] || String(i),
-              category: idx.category >= 0 ? (cols[idx.category] || "") : "",
-              question: cols[idx.question] || "",
+              id: cols[idIndex] || String(i),
+              category: categoryIndex >= 0 ? (cols[categoryIndex] || "") : "",
+              question: cols[questionIndex] || "",
               choices: [],
               correct: 1,
-              image: idx.image >= 0 ? (cols[idx.image] || "") : "",
-              explanation: idx.explanation >= 0 ? (cols[idx.explanation] || "") : "",
-              note: idx.note >= 0 ? (cols[idx.note] || "") : ""
+              image: imageIndex >= 0 ? (cols[imageIndex] || "") : "",
+              explanation: explanationIndex >= 0 ? (cols[explanationIndex] || "") : "",
+              note: noteIndex >= 0 ? (cols[noteIndex] || "") : ""
             };
-            q.choices.push(idx.choice1 >= 0 ? (cols[idx.choice1] || "") : "");
-            q.choices.push(idx.choice2 >= 0 ? (cols[idx.choice2] || "") : "");
-            q.choices.push(idx.choice3 >= 0 ? (cols[idx.choice3] || "") : "");
-            q.choices.push(idx.choice4 >= 0 ? (cols[idx.choice4] || "") : "");
 
-            if (idx.correct >= 0 && cols[idx.correct]) {
-              var n = parseInt(cols[idx.correct], 10);
-              if (!isNaN(n) && n >= 1 && n <= 4) {
+            // 選択肢をまとめて取得
+            for (var c = choiceStart; c < choiceEnd; c++) {
+              q.choices.push(cols[c] || "");
+            }
+            // 一応4択前提で、足りなければ空文字を埋める
+            while (q.choices.length < 4) {
+              q.choices.push("");
+            }
+
+            if (cols[correctIndex]) {
+              var n = parseInt(cols[correctIndex], 10);
+              if (!isNaN(n) && n >= 1 && n <= q.choices.length) {
                 q.correct = n;
               }
             }
+
             result.push(q);
           }
 
@@ -502,12 +492,6 @@
     }
 
     // ====== イベント設定 ======
-    reloadBtn.addEventListener("click", function() {
-      storageKey = makeStorageKey(DEFAULT_CSV_URL);
-      loadProgress();
-      loadCsvFromUrl(DEFAULT_CSV_URL);
-    });
-
     explainBtn.addEventListener("click", function() {
       toggleExplanation();
     });
