@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>—‰ÈƒgƒŒ[ƒi[ié‹Ê“ü‘Î‰j</title>
+  <title>ç†ç§‘ãƒˆãƒ¬ãƒ¼ãƒŠãƒ¼ï¼ˆåŸ¼ç‰å…¥è©¦å¯¾å¿œï¼‰</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
@@ -19,32 +19,20 @@
     h1 {
       font-size: 1.4rem;
       text-align: center;
-      margin: 8px 0 12px;
+      margin: 8px 0 4px;
     }
-    .config-box, .card {
+    .subtitle {
+      font-size: 0.85rem;
+      text-align: center;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    .status-box, .card {
       background: #ffffff;
       border-radius: 12px;
       padding: 12px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.08);
       margin-bottom: 12px;
-    }
-    .config-box label {
-      font-size: 0.9rem;
-      display: block;
-      margin-bottom: 4px;
-    }
-    .config-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    input[type="text"] {
-      flex: 1;
-      padding: 8px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 0.9rem;
     }
     button {
       padding: 8px 12px;
@@ -64,10 +52,16 @@
       opacity: 0.5;
       cursor: default;
     }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
     .status-text {
       font-size: 0.8rem;
       color: #555;
-      margin-top: 4px;
       word-break: break-all;
     }
     .question-category {
@@ -152,30 +146,26 @@
       }
       button {
         width: 100%;
-        justify-content: center;
         text-align: center;
       }
-      .config-row {
+      .status-row {
         flex-direction: column;
-        align-items: stretch;
+        align-items: flex-start;
       }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>—‰ÈƒgƒŒ[ƒi[ié‹ÊŒ§Œö—§“ü‘Îôj</h1>
+    <h1>ç†ç§‘ãƒˆãƒ¬ãƒ¼ãƒŠãƒ¼</h1>
+    <div class="subtitle">åŸ¼ç‰çœŒå…¬ç«‹é«˜æ ¡å…¥è©¦å¯¾ç­–ï¼ˆé–“éš”åå¾©ï¼†4æŠã‚¯ã‚¤ã‚ºï¼‰</div>
 
-    <div class="config-box">
-      <label for="csvUrl">g—p’†‚Ì Google SheetsiCSVŒöŠJURLj</label>
-      <div class="config-row">
-        <!-- š ‚±‚±‚É‚ ‚È‚½‚ÌCSV‚ÌURL‚ğ‚ ‚ç‚©‚¶‚ß“ü‚ê‚Ä‚ ‚è‚Ü‚· š -->
-        <input type="text" id="csvUrl" readonly />
-        <button id="loadBtn">Ä“Ç‚İ‚İ</button>
-      </div>
-      <div class="status-text" id="statusText">
-        ƒy[ƒW•\¦‚É©“®‚Å–â‘è‚ğ“Ç‚İ‚İ‚Ü‚·B<br>
-        ƒV[ƒg‚ğXV‚µ‚½‚ ‚Æ‚É”½‰f‚µ‚½‚¢‚Æ‚«‚ÍuÄ“Ç‚İ‚İv‚ğ‰Ÿ‚µ‚Ä‚­‚¾‚³‚¢B
+    <div class="status-box">
+      <div class="status-row">
+        <div class="status-text" id="statusText">
+          å•é¡Œãƒ‡ãƒ¼ã‚¿ã‚’èª­ã¿è¾¼ã‚“ã§ã„ã¾ã™â€¦
+        </div>
+        <button id="reloadBtn">å•é¡Œã‚’å†èª­ã¿è¾¼ã¿</button>
       </div>
     </div>
 
@@ -188,8 +178,8 @@
       <div class="choices" id="choicesBox"></div>
       <div class="result-text" id="resultText"></div>
       <div class="action-row">
-        <button id="explainBtn" class="secondary" style="display:none;">‰ğà‚ğŒ©‚é</button>
-        <button id="nextBtn" class="secondary" style="display:none;">Ÿ‚Ì–â‘è</button>
+        <button id="explainBtn" class="secondary" style="display:none;">è§£èª¬ã‚’è¦‹ã‚‹</button>
+        <button id="nextBtn" class="secondary" style="display:none;">æ¬¡ã®å•é¡Œ</button>
       </div>
       <div class="explanation-box" id="explanationBox"></div>
       <div class="stats" id="statsText"></div>
@@ -197,10 +187,11 @@
   </div>
 
   <script>
-    // ====== š ‚±‚±‚ÉŒÅ’è‚ÌCSV URL ‚ğİ’è š ======
-    var DEFAULT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=305193808&single=true&output=csv";
+    // ====== â˜… å›ºå®šã®CSV URLï¼ˆã“ã“ã ã‘å·®ã—æ›¿ãˆã‚Œã°OKï¼‰ ======
+    var DEFAULT_CSV_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=305193808&single=true&output=csv";
 
-    // ====== ƒf[ƒ^ŠÇ——p ======
+    // ====== ãƒ‡ãƒ¼ã‚¿ç®¡ç†ç”¨ ======
     var questions = [];
     var currentQuestion = null;
     var progress = {}; // { id: { intervalDays, nextDue, correctCount, wrongCount } }
@@ -208,29 +199,26 @@
     var correctCount = 0;
     var storageKey = "";
 
-    // ====== DOM—v‘f ======
-    var csvUrlInput   = document.getElementById("csvUrl");
-    var loadBtn       = document.getElementById("loadBtn");
-    var statusText    = document.getElementById("statusText");
-    var quizCard      = document.getElementById("quizCard");
+    // ====== DOMè¦ç´  ======
+    var reloadBtn      = document.getElementById("reloadBtn");
+    var statusText     = document.getElementById("statusText");
+    var quizCard       = document.getElementById("quizCard");
     var questionCategory = document.getElementById("questionCategory");
-    var questionText  = document.getElementById("questionText");
-    var imageBox      = document.getElementById("imageBox");
-    var questionImage = document.getElementById("questionImage");
-    var choicesBox    = document.getElementById("choicesBox");
-    var resultText    = document.getElementById("resultText");
-    var explainBtn    = document.getElementById("explainBtn");
-    var nextBtn       = document.getElementById("nextBtn");
-    var explanationBox= document.getElementById("explanationBox");
-    var statsText     = document.getElementById("statsText");
-
-    csvUrlInput.value = DEFAULT_CSV_URL;
+    var questionText   = document.getElementById("questionText");
+    var imageBox       = document.getElementById("imageBox");
+    var questionImage  = document.getElementById("questionImage");
+    var choicesBox     = document.getElementById("choicesBox");
+    var resultText     = document.getElementById("resultText");
+    var explainBtn     = document.getElementById("explainBtn");
+    var nextBtn        = document.getElementById("nextBtn");
+    var explanationBox = document.getElementById("explanationBox");
+    var statsText      = document.getElementById("statsText");
 
     function setStatus(msg) {
       statusText.textContent = msg;
     }
 
-    // ====== ƒ[ƒJƒ‹ƒXƒgƒŒ[ƒW ======
+    // ====== ãƒ­ãƒ¼ã‚«ãƒ«ã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ ======
     function makeStorageKey(url) {
       return "rika_trainer_" + btoa(unescape(encodeURIComponent(url)));
     }
@@ -253,16 +241,15 @@
       localStorage.setItem(storageKey, JSON.stringify(progress));
     }
 
-    // ====== CSV / TSV ‰ğÍ ======
+    // ====== CSV / TSV è§£æ ======
     function parseSeparatedLine(line, delimiter) {
-      // ƒVƒ“ƒvƒ‹”ÅF—‰È‚Ì“ú–{Œê‚È‚çƒJƒ“ƒ}‚Í‚Ù‚Úg‚í‚È‚¢‘z’è
       return line.split(delimiter).map(function(part) {
         return part.trim();
       });
     }
 
     function loadCsvFromUrl(url) {
-      setStatus("–â‘è‚ğ“Ç‚İ‚ñ‚Å‚¢‚Ü‚·c");
+      setStatus("å•é¡Œãƒ‡ãƒ¼ã‚¿ã‚’èª­ã¿è¾¼ã‚“ã§ã„ã¾ã™â€¦");
       fetch(url)
         .then(function(res) {
           if (!res.ok) {
@@ -273,10 +260,9 @@
         .then(function(text) {
           var lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
           if (lines.length <= 1) {
-            throw new Error("ƒf[ƒ^‚ª‚ ‚è‚Ü‚¹‚ñi1s‚µ‚©‚ ‚è‚Ü‚¹‚ñj");
+            throw new Error("ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚Šã¾ã›ã‚“ï¼ˆ1è¡Œã—ã‹ã‚ã‚Šã¾ã›ã‚“ï¼‰");
           }
 
-          // ‹æØ‚è•¶š‚ğ„’èiƒ^ƒu—DæA‚È‚¯‚ê‚ÎƒJƒ“ƒ}j
           var delimiter = "\t";
           if (lines[0].indexOf("\t") === -1 && lines[0].indexOf(",") !== -1) {
             delimiter = ",";
@@ -298,7 +284,7 @@
           };
 
           if (idx.id === -1 || idx.question === -1 || idx.choice1 === -1 || idx.correct === -1) {
-            throw new Error("ƒwƒbƒ_[s‚ª‘«‚è‚Ü‚¹‚ñiid, question, choice1, correct ‚Í•K{j");
+            throw new Error("ãƒ˜ãƒƒãƒ€ãƒ¼è¡ŒãŒè¶³ã‚Šã¾ã›ã‚“ï¼ˆid, question, choice1, correct ã¯å¿…é ˆï¼‰");
           }
 
           var result = [];
@@ -327,42 +313,39 @@
                 q.correct = n;
               }
             }
-
             result.push(q);
           }
 
           questions = result;
           if (questions.length === 0) {
-            throw new Error("—LŒø‚È–â‘è‚ª‚ ‚è‚Ü‚¹‚ñ‚Å‚µ‚½B");
+            throw new Error("æœ‰åŠ¹ãªå•é¡ŒãŒã‚ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚");
           }
 
           answeredCount = 0;
           correctCount = 0;
           quizCard.style.display = "block";
-          setStatus("“Ç‚İ‚İŠ®—¹F–â‘è” " + questions.length + " –â");
+          setStatus("èª­ã¿è¾¼ã¿å®Œäº†ï¼šå•é¡Œæ•° " + questions.length + " å•");
           showNextQuestion();
         })
         .catch(function(err) {
-          setStatus("“Ç‚İ‚İƒGƒ‰[: " + err.message);
+          setStatus("èª­ã¿è¾¼ã¿ã‚¨ãƒ©ãƒ¼: " + err.message);
           quizCard.style.display = "none";
         });
     }
 
-    // ====== o‘èƒƒWƒbƒNiŠÈˆÕEŠÔŠu”½•œj ======
+    // ====== å‡ºé¡Œãƒ­ã‚¸ãƒƒã‚¯ï¼ˆç°¡æ˜“ãƒ»é–“éš”åå¾©ï¼‰ ======
     function pickNextQuestion() {
       if (!questions || questions.length === 0) return null;
       var now = Date.now();
 
-      // o‘èŠúŒÀ‚ª—ˆ‚Ä‚¢‚é–â‘è
       var due = questions.filter(function(q) {
         var rec = progress[q.id];
-        if (!rec) return true; // ‚Ü‚¾ˆê“x‚à‰ğ‚¢‚Ä‚¢‚È‚¢‚à‚Ì‚Í—Dæ
+        if (!rec) return true;
         return rec.nextDue <= now;
       });
 
       var pool = due;
       if (pool.length === 0) {
-        // ‚·‚×‚Ä–¢—ˆ‚È‚çA‘S‘Ì‚©‚çƒ‰ƒ“ƒ_ƒ€
         pool = questions;
       }
 
@@ -384,7 +367,6 @@
 
       if (isCorrect) {
         rec.correctCount += 1;
-        // ŠÔŠu‚ğ 0 ¨ 1 ¨ 2 ¨ 5 ¨ 999 “ú ‚ÌƒCƒ[ƒW‚ÅL‚Î‚·
         if (rec.intervalDays === 0) {
           rec.intervalDays = 1;
         } else if (rec.intervalDays === 1) {
@@ -396,7 +378,6 @@
         }
       } else {
         rec.wrongCount += 1;
-        // ŠÔˆá‚¦‚½‚ç interval ‚ğ 0 ‚ÉƒŠƒZƒbƒg
         rec.intervalDays = 0;
       }
 
@@ -405,7 +386,7 @@
       saveProgress();
     }
 
-    // ====== UIXV ======
+    // ====== UIæ›´æ–° ======
     function clearQuestionUI() {
       questionCategory.textContent = "";
       questionText.textContent = "";
@@ -424,7 +405,7 @@
       clearQuestionUI();
       currentQuestion = pickNextQuestion();
       if (!currentQuestion) {
-        questionText.textContent = "o‘è‚Å‚«‚é–â‘è‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B";
+        questionText.textContent = "å‡ºé¡Œã§ãã‚‹å•é¡ŒãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚";
         return;
       }
 
@@ -456,7 +437,6 @@
       var selected = parseInt(btn.dataset.index, 10);
       var correct = currentQuestion.correct;
 
-      // ‚·‚×‚Ä‚Ìƒ{ƒ^ƒ“‚ğ–³Œø‚É
       var buttons = choicesBox.querySelectorAll("button");
       buttons.forEach(function(b) {
         b.disabled = true;
@@ -466,14 +446,13 @@
       var isCorrect = (selected === correct);
       if (isCorrect) {
         correctCount += 1;
-        resultText.textContent = "? ³‰ğI";
+        resultText.textContent = "â­• æ­£è§£ï¼";
         resultText.className = "result-text correct";
       } else {
-        resultText.textContent = "? •s³‰ğc@³‰ğ‚Íu" + correct + "”Ôv‚Å‚·B";
+        resultText.textContent = "âŒ ä¸æ­£è§£â€¦ã€€æ­£è§£ã¯ã€Œ" + correct + "ç•ªã€ã§ã™ã€‚";
         resultText.className = "result-text incorrect";
       }
 
-      // ƒ{ƒ^ƒ“‚ÌF•t‚¯
       buttons.forEach(function(b) {
         var idx = parseInt(b.dataset.index, 10);
         if (idx === correct) {
@@ -485,10 +464,9 @@
 
       updateProgress(currentQuestion, isCorrect);
 
-      // ‰ğàƒ{ƒ^ƒ“EŸ‚Ì–â‘èƒ{ƒ^ƒ“‚ğ•\¦
       if (currentQuestion.explanation && currentQuestion.explanation.trim() !== "") {
         explainBtn.style.display = "inline-block";
-        explainBtn.textContent = "‰ğà‚ğŒ©‚é";
+        explainBtn.textContent = "è§£èª¬ã‚’è¦‹ã‚‹";
       } else {
         explainBtn.style.display = "none";
       }
@@ -499,13 +477,13 @@
 
     function updateStats() {
       if (answeredCount === 0) {
-        statsText.textContent = "‚Ü‚¾‰ñ“š‚µ‚Ä‚¢‚Ü‚¹‚ñB";
+        statsText.textContent = "ã¾ã å›ç­”ã—ã¦ã„ã¾ã›ã‚“ã€‚";
       } else {
         var rate = Math.round((correctCount / answeredCount) * 100);
         statsText.textContent =
-          "¡“ú‚Ì‰ñ“š”: " + answeredCount +
-          "^ ³‰ğ”: " + correctCount +
-          "^ ³“š—¦: " + rate + "%";
+          "ä»Šæ—¥ã®å›ç­”æ•°: " + answeredCount +
+          "ï¼ æ­£è§£æ•°: " + correctCount +
+          "ï¼ æ­£ç­”ç‡: " + rate + "%";
       }
     }
 
@@ -514,21 +492,20 @@
       if (explanationBox.style.display === "none") {
         explanationBox.innerHTML = currentQuestion.explanation
           ? currentQuestion.explanation.replace(/\n/g, "<br>")
-          : "‰ğà‚Í“o˜^‚³‚ê‚Ä‚¢‚Ü‚¹‚ñB";
+          : "è§£èª¬ã¯ç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“ã€‚";
         explanationBox.style.display = "block";
-        explainBtn.textContent = "‰ğà‚ğ•Â‚¶‚é";
+        explainBtn.textContent = "è§£èª¬ã‚’é–‰ã˜ã‚‹";
       } else {
         explanationBox.style.display = "none";
-        explainBtn.textContent = "‰ğà‚ğŒ©‚é";
+        explainBtn.textContent = "è§£èª¬ã‚’è¦‹ã‚‹";
       }
     }
 
-    // ====== ƒCƒxƒ“ƒgİ’è ======
-    loadBtn.addEventListener("click", function() {
-      var url = DEFAULT_CSV_URL;
-      storageKey = makeStorageKey(url);
+    // ====== ã‚¤ãƒ™ãƒ³ãƒˆè¨­å®š ======
+    reloadBtn.addEventListener("click", function() {
+      storageKey = makeStorageKey(DEFAULT_CSV_URL);
       loadProgress();
-      loadCsvFromUrl(url);
+      loadCsvFromUrl(DEFAULT_CSV_URL);
     });
 
     explainBtn.addEventListener("click", function() {
@@ -539,12 +516,11 @@
       showNextQuestion();
     });
 
-    // ====== ƒy[ƒW•\¦‚É©“®“Ç‚İ‚İ ======
+    // ====== ãƒšãƒ¼ã‚¸è¡¨ç¤ºæ™‚ã«è‡ªå‹•èª­ã¿è¾¼ã¿ ======
     window.addEventListener("load", function() {
-      var url = DEFAULT_CSV_URL;
-      storageKey = makeStorageKey(url);
+      storageKey = makeStorageKey(DEFAULT_CSV_URL);
       loadProgress();
-      loadCsvFromUrl(url);
+      loadCsvFromUrl(DEFAULT_CSV_URL);
     });
   </script>
 </body>
