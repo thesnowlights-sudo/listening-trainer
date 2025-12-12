@@ -310,7 +310,7 @@
               }
             }
 
-            result.push({
+          result.push({
               id: cols[idx.id] || String(i),
               category: idx.category >= 0 ? (cols[idx.category] || "") : "",
               question: cols[idx.question] || "",
@@ -319,6 +319,7 @@
               image: idx.image >= 0 ? (cols[idx.image] || "") : "",
               explanation: idx.explanation >= 0 ? (cols[idx.explanation] || "") : "",
               explanationImage: idx.explanation_image >= 0 ? (cols[idx.explanation_image] || "") : "",
+              referenceUrl: idx.reference_url >= 0 ? (cols[idx.reference_url] || "") : "",
               note: idx.note >= 0 ? (cols[idx.note] || "") : ""
             });
           }
@@ -431,6 +432,9 @@
           (q.explanationImage && q.explanationImage.trim() !== "") ||
           (q.referenceUrl && q.referenceUrl.trim() !== "")) {
         explainBtn.style.display = "inline-block";
+        explainBtn.textContent = "解説を見る";
+      }
+      nextBtn.style.display = "inline-block";
 
       updateStats();
       updateDebugView();
@@ -536,5 +540,6 @@
   </script>
 </body>
 </html>
+
 
 
