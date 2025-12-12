@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>理科トレーナー（埼玉入試対応）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    h1 {
+      font-size: 1.4rem;
+      text-align: center;
+      margin: 8px 0 4px;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      text-align: center;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .status-text {
+      font-size: 0.8rem;
+      color: #555;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      margin-bottom: 12px;
+    }
+    button {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #1976d2;
+      color: #fff;
+      white-space: nowrap;
+    }
+    button.secondary {
+      background: #eee;
+      color: #333;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .question-category {
+      display: inline-block;
+      font-size: 0.82rem;
+      color: #333;
+      background: #e0e0e0;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-bottom: 4px;
+    }
+    .question-text {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      line-height: 1.5;
+      color: #222;
+    }
+    .image-box {
+      text-align: center;
+      margin: 8px 0;
+    }
+    .image-box img {
+      max-width: 100%;
+      border-radius: 8px;
+    }
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .choice-btn {
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid #ccc;
+      background: #fafafa;
+      font-size: 0.95rem;
+      color: #333;
+    }
+    .choice-btn.correct {
+      background: #c8e6c9;
+      border-color: #2e7d32;
+      color: #1b5e20;
+    }
+    .choice-btn.incorrect {
+      background: #ffcdd2;
+      border-color: #c62828;
+      color: #b71c1c;
+    }
+    .result-text {
+      margin-top: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #333;
+    }
+    .result-text.correct {
+      color: #2e7d32;
+    }
+    .result-text.incorrect {
+      color: #c62828;
+    }
+    .action-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .explanation-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f1f8e9;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      display: none;
+      color: #333;
+    }
+    .explain-image {
+      text-align: center;
+      margin-top: 8px;
+    }
+    .explain-image img {
+      max-width: 100%;
+      border-radius: 8px;
+    }
+    .stats {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 4px;
+    }
+    .progress-info {
+      font-size: 0.75rem;
+      color: #777;
+      margin-top: 4px;
+      padding: 6px;
+      background: #f9f9f9;
+      border-radius: 6px;
+    }
+    #debugBox {
+      display: none;
+      background: #111;
+      color: #0f0;
+      font-size: 0.75rem;
+      padding: 6px 8px;
+      margin-top: 8px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.2rem;
+      }
+      button {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>理科</h1>
+    <div class="subtitle">埼玉県公立高校入試対策<br>間違えた問題は繰り返し出題されます</div>
+    <div class="status-text" id="statusText">問題データを読み込んでいます…</div>
+
+    <div class="card" id="quizCard" style="display:none;">
+      <div class="question-category" id="questionCategory"></div>
+      <div class="question-text" id="questionText"></div>
+      <div class="image-box" id="imageBox" style="display:none;">
+        <img id="questionImage" src="" alt="question image">
+      </div>
+      <div class="choices" id="choicesBox"></div>
+      <div class="result-text" id="resultText"></div>
+      <div class="action-row">
+        <button id="explainBtn" class="secondary" style="display:none;">解説を見る</button>
+        <button id="nextBtn" class="secondary" style="display:none;">次の問題</button>
+      </div>
+      <div class="explanation-box" id="explanationBox"></div>
+      <div class="stats" id="statsText"></div>
+      <div class="progress-info" id="progressInfo"></div>
+      <div id="debugBox"></div>
+    </div>
+  </div>
+
+  <script>
+    var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfd2xAvuIy1Z_v7xUUVFb6jPrdciEgQ_dbf88oYxGs2OV03zan_o7n4hpeFGXUABn3LfYcaRqMwy35/pub?gid=305193808&single=true&output=csv";
+    
+    // 進捗管理用の定数
+    var PROGRESS_KEY = "science_trainer_progress_v1";
+    var DAILY_TARGET = 15;
+    var INTERVALS = [1, 2, 5, 999]; // スペースドリピティションの間隔（日数）
+
+    // データ
+    var allQuestions = [];
+    var todayQueue = [];
+    var queueIndex = 0;
+    var currentQuestion = null;
+    var currentShuffle = [];
+    var correctButtonIndex = 0;
+    var sessionCorrect = 0;
+    var sessionTotal = 0;
+
+    // DOM
+    var statusText = document.getElementById("statusText");
+    var quizCard = document.getElementById("quizCard");
+    var questionCategory = document.getElementById("questionCategory");
+    var questionText = document.getElementById("questionText");
+    var imageBox = document.getElementById("imageBox");
+    var questionImage = document.getElementById("questionImage");
+    var choicesBox = document.getElementById("choicesBox");
+    var resultText = document.getElementById("resultText");
+    var explainBtn = document.getElementById("explainBtn");
+    var nextBtn = document.getElementById("nextBtn");
+    var explanationBox = document.getElementById("explanationBox");
+    var statsText = document.getElementById("statsText");
+    var progressInfo = document.getElementById("progressInfo");
+    var debugBox = document.getElementById("debugBox");
+
+    var debugMode = false;
+    var audioCtx = null;
+
+    // ========== 進捗管理関数 ==========
+    function todayStr() {
+      var d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+
+    function loadProgress() {
+      try {
+        return JSON.parse(localStorage.getItem(PROGRESS_KEY) || "{}");
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveProgress(prog) {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(prog));
+    }
+
+    function updateResult(questionId, isCorrect) {
+      var prog = loadProgress();
+      var now = todayStr();
+      
+      if (!prog[questionId]) {
+        prog[questionId] = { box: 0, nextDue: now, correct: 0, wrong: 0 };
+      }
+      
+      var box = prog[questionId].box;
+      if (isCorrect) {
+        box = Math.min(box + 1, 3);
+        prog[questionId].correct = (prog[questionId].correct || 0) + 1;
+      } else {
+        box = 0;
+        prog[questionId].wrong = (prog[questionId].wrong || 0) + 1;
+      }
+      
+      var d = new Date();
+      d.setDate(d.getDate() + INTERVALS[box]);
+      prog[questionId].box = box;
+      prog[questionId].nextDue = d.toISOString().slice(0, 10);
+      
+      saveProgress(prog);
+    }
+
+    function getTodayQueue(questions) {
+      var prog = loadProgress();
+      var today = todayStr();
+      var due = [];
+      var fresh = [];
+      
+      for (var i = 0; i < questions.length; i++) {
+        var q = questions[i];
+        var p = prog[q.id];
+        
+        if (p && p.nextDue <= today) {
+          due.push(q);
+        } else if (!p) {
+          fresh.push(q);
+        }
+      }
+      
+      // シャッフル
+      shuffleArray(due);
+      shuffleArray(fresh);
+      
+      var result = [];
+      var takeCount = 0;
+      
+      // まず復習問題を追加
+      while (takeCount < DAILY_TARGET && due.length > 0) {
+        result.push(due.shift());
+        takeCount++;
+      }
+      
+      // 残りを新規問題で埋める
+      while (takeCount < DAILY_TARGET && fresh.length > 0) {
+        result.push(fresh.shift());
+        takeCount++;
+      }
+      
+      shuffleArray(result);
+      return result;
+    }
+
+    // ========== 正解音を鳴らす関数 ==========
+    function playCorrectSound() {
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) audioCtx = new AC();
+        
+        var now = audioCtx.currentTime;
+        
+        // 1音目
+        var osc1 = audioCtx.createOscillator();
+        var g1 = audioCtx.createGain();
+        osc1.type = "sine";
+        osc1.frequency.value = 880;
+        g1.gain.setValueAtTime(0.0, now);
+        g1.gain.linearRampToValueAtTime(0.25, now + 0.01);
+        g1.gain.linearRampToValueAtTime(0.0, now + 0.12);
+        osc1.connect(g1);
+        g1.connect(audioCtx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.15);
+        
+        // 2音目
+        var osc2 = audioCtx.createOscillator();
+        var g2 = audioCtx.createGain();
+        osc2.type = "sine";
+        osc2.frequency.value = 1320;
+        g2.gain.setValueAtTime(0.0, now + 0.10);
+        g2.gain.linearRampToValueAtTime(0.2, now + 0.12);
+        g2.gain.linearRampToValueAtTime(0.0, now + 0.24);
+        osc2.connect(g2);
+        g2.connect(audioCtx.destination);
+        osc2.start(now + 0.10);
+        osc2.stop(now + 0.25);
+      } catch (e) {
+        console.error("音声再生エラー:", e);
+      }
+    }
+
+    // ========== CSV読み込み ==========
+    function setStatus(msg) {
+      statusText.textContent = msg;
+    }
+
+    function parseSeparatedLine(line, delimiter) {
+      return line.split(delimiter).map(function (part) {
+        return part.trim();
+      });
+    }
+
+    function shuffleArray(arr) {
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+      return arr;
+    }
+
+    function loadCsvFromUrl(url) {
+      setStatus("問題データを読み込んでいます…");
+      fetch(url)
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.text();
+        })
+        .then(function (text) {
+          var lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+          if (lines.length <= 1) throw new Error("データがありません");
+
+          var delimiter = "\t";
+          if (lines[0].indexOf("\t") === -1 && lines[0].indexOf(",") !== -1) {
+            delimiter = ",";
+          }
+
+          var header = parseSeparatedLine(lines[0], delimiter);
+          var idx = {
+            id: header.indexOf("id"),
+            category: header.indexOf("category"),
+            question: header.indexOf("question"),
+            choice1: header.indexOf("choice1"),
+            choice2: header.indexOf("choice2"),
+            choice3: header.indexOf("choice3"),
+            choice4: header.indexOf("choice4"),
+            correct: header.indexOf("correct"),
+            image: header.indexOf("image"),
+            explanation: header.indexOf("explanation"),
+            explanation_image: header.indexOf("explanation_image"),
+            reference_url: header.indexOf("reference_url"),
+            note: header.indexOf("note")
+          };
+
+          var result = [];
+          for (var i = 1; i < lines.length; i++) {
+            var line = lines[i];
+            if (!line.trim()) continue;
+            var cols = parseSeparatedLine(line, delimiter);
+
+            var choices = [];
+            if (idx.choice1 >= 0) choices.push(cols[idx.choice1] || "");
+            if (idx.choice2 >= 0) choices.push(cols[idx.choice2] || "");
+            if (idx.choice3 >= 0) choices.push(cols[idx.choice3] || "");
+            if (idx.choice4 >= 0) choices.push(cols[idx.choice4] || "");
+            if (choices.length === 0) continue;
+
+            var correctIndex = 0;
+            if (cols[idx.correct]) {
+              var n = parseInt(cols[idx.correct], 10);
+              if (!isNaN(n) && n >= 1 && n <= choices.length) {
+                correctIndex = n - 1;
+              }
+            }
+
+            result.push({
+              id: cols[idx.id] || String(i),
+              category: idx.category >= 0 ? (cols[idx.category] || "") : "",
+              question: cols[idx.question] || "",
+              choices: choices,
+              correctIndex: correctIndex,
+              image: idx.image >= 0 ? (cols[idx.image] || "") : "",
+              explanation: idx.explanation >= 0 ? (cols[idx.explanation] || "") : "",
+              explanationImage: idx.explanation_image >= 0 ? (cols[idx.explanation_image] || "") : "",
+              referenceUrl: idx.reference_url >= 0 ? (cols[idx.reference_url] || "") : "",
+              note: idx.note >= 0 ? (cols[idx.note] || "") : ""
+            });
+          }
+
+          allQuestions = result;
+          if (allQuestions.length === 0) throw new Error("有効な問題がありません");
+
+          sessionCorrect = 0;
+          sessionTotal = 0;
+          
+          todayQueue = getTodayQueue(allQuestions);
+          queueIndex = 0;
+          
+          quizCard.style.display = "block";
+          setStatus("読み込み完了：全問題数 " + allQuestions.length + " 問");
+          showNextQuestion();
+        })
+        .catch(function (err) {
+          setStatus("読み込みエラー: " + err.message);
+          quizCard.style.display = "none";
+        });
+    }
+
+    // ========== 問題表示 ==========
+    function clearQuestionUI() {
+      questionCategory.textContent = "";
+      questionText.textContent = "";
+      imageBox.style.display = "none";
+      questionImage.src = "";
+      choicesBox.innerHTML = "";
+      resultText.textContent = "";
+      resultText.className = "result-text";
+      explanationBox.style.display = "none";
+      explanationBox.innerHTML = "";
+      explainBtn.style.display = "none";
+      nextBtn.style.display = "none";
+    }
+
+    function showNextQuestion() {
+      if (queueIndex >= todayQueue.length) {
+        // 一周完了したら新しいキューを作成
+        todayQueue = getTodayQueue(allQuestions);
+        queueIndex = 0;
+        
+        if (todayQueue.length === 0) {
+          alert("おめでとうございます！今日の問題はすべて完了しました。");
+          return;
+        }
+        alert("一周完了！間違えた問題を含めて再度出題します。");
+      }
+
+      currentQuestion = todayQueue[queueIndex];
+      showQuestion(currentQuestion);
+    }
+
+    function showQuestion(q) {
+      clearQuestionUI();
+
+      questionCategory.textContent = q.category || "";
+      questionText.textContent = q.question;
+
+      if (q.image) {
+        imageBox.style.display = "block";
+        questionImage.src = q.image;
+      }
+
+      // 選択肢をシャッフル
+      var n = q.choices.length;
+      var indices = [];
+      for (var i = 0; i < n; i++) indices.push(i);
+      currentShuffle = shuffleArray(indices.slice());
+      correctButtonIndex = currentShuffle.indexOf(q.correctIndex);
+
+      for (var b = 0; b < n; b++) {
+        var choiceIdx = currentShuffle[b];
+        var btn = document.createElement("button");
+        btn.className = "choice-btn";
+        btn.textContent = (b + 1) + ". " + q.choices[choiceIdx];
+        btn.dataset.index = String(b);
+        btn.addEventListener("click", onChoiceClick);
+        choicesBox.appendChild(btn);
+      }
+
+      updateStats();
+      updateProgressInfo();
+      updateDebugView();
+    }
+
+    function onChoiceClick(event) {
+      var btn = event.currentTarget;
+      var selectedBtnIndex = parseInt(btn.dataset.index, 10);
+
+      var buttons = choicesBox.querySelectorAll("button");
+      buttons.forEach(function (b) { b.disabled = true; });
+
+      sessionTotal++;
+      var isCorrect = (selectedBtnIndex === correctButtonIndex);
+      
+      if (isCorrect) {
+        sessionCorrect++;
+        resultText.textContent = "⭕ 正解！";
+        resultText.className = "result-text correct";
+        playCorrectSound(); // 正解音を鳴らす
+        updateResult(currentQuestion.id, true);
+        
+        // 正解の場合は自動で次へ
+        setTimeout(function() {
+          queueIndex++;
+          showNextQuestion();
+        }, 800);
+      } else {
+        var correctNo = correctButtonIndex + 1;
+        resultText.textContent = "❌ 不正解…　正解は「" + correctNo + "番」です。";
+        resultText.className = "result-text incorrect";
+        updateResult(currentQuestion.id, false);
+        
+        // 間違えた問題をキューの最後に追加
+        todayQueue.push(currentQuestion);
+        
+        nextBtn.style.display = "inline-block";
+      }
+
+      buttons.forEach(function (b) {
+        var idx = parseInt(b.dataset.index, 10);
+        if (idx === correctButtonIndex) {
+          b.classList.add("correct");
+        } else if (idx === selectedBtnIndex) {
+          b.classList.add("incorrect");
+        }
+      });
+
+      if ((currentQuestion.explanation && currentQuestion.explanation.trim() !== "") ||
+          (currentQuestion.explanationImage && currentQuestion.explanationImage.trim() !== "") ||
+          (currentQuestion.referenceUrl && currentQuestion.referenceUrl.trim() !== "")) {
+        explainBtn.style.display = "inline-block";
+      }
+
+      updateStats();
+      updateProgressInfo();
+      updateDebugView();
+    }
+
+    function updateStats() {
+      if (sessionTotal === 0) {
+        statsText.textContent = "まだ回答していません。";
+      } else {
+        var rate = Math.round((sessionCorrect / sessionTotal) * 100);
+        statsText.textContent = "今セッション: " + sessionTotal + "問 / 正解: " + sessionCorrect + "問 / 正答率: " + rate + "%";
+      }
+    }
+
+    function updateProgressInfo() {
+      var prog = loadProgress();
+      var totalAnswered = 0;
+      var totalCorrect = 0;
+      var totalWrong = 0;
+      var masteredCount = 0;
+      
+      for (var key in prog) {
+        var p = prog[key];
+        totalCorrect += (p.correct || 0);
+        totalWrong += (p.wrong || 0);
+        if (p.box >= 3) masteredCount++;
+      }
+      totalAnswered = totalCorrect + totalWrong;
+      
+      var currentProg = currentQuestion ? prog[currentQuestion.id] : null;
+      var qInfo = "";
+      if (currentQuestion && currentProg) {
+        qInfo = "この問題: 正解" + (currentProg.correct || 0) + "回 / ミス" + (currentProg.wrong || 0) + "回 | ";
+      }
+      
+      progressInfo.textContent = qInfo + "今日の出題: " + (queueIndex + 1) + "/" + todayQueue.length + " | 累計: " + totalAnswered + "回答 / マスター: " + masteredCount + "問";
+    }
+
+    function toggleExplanation() {
+      if (!currentQuestion) return;
+
+      if (explanationBox.style.display === "none") {
+        var html = "";
+        if (currentQuestion.explanation && currentQuestion.explanation.trim() !== "") {
+          html += currentQuestion.explanation.replace(/\n/g, "<br>");
+        }
+        if (currentQuestion.explanationImage && currentQuestion.explanationImage.trim() !== "") {
+          html += '<div class="explain-image"><img src="' + currentQuestion.explanationImage + '" alt="explanation image"></div>';
+        }
+        if (currentQuestion.referenceUrl && currentQuestion.referenceUrl.trim() !== "") {
+          html += '<div style="margin-top:8px;"><strong>📎 参考URL:</strong><br><a href="' + currentQuestion.referenceUrl + '" target="_blank" rel="noopener noreferrer" style="color:#1976d2;text-decoration:underline;">' + currentQuestion.referenceUrl + '</a></div>';
+        }
+        if (!html) {
+          html = "解説は登録されていません。";
+        }
+        explanationBox.innerHTML = html;
+        explanationBox.style.display = "block";
+        explainBtn.textContent = "解説を閉じる";
+      } else {
+        explanationBox.style.display = "none";
+        explainBtn.textContent = "解説を見る";
+      }
+    }
+
+    function updateDebugView() {
+      if (!debugMode || !currentQuestion) {
+        debugBox.style.display = "none";
+        return;
+      }
+      
+      var prog = loadProgress();
+      var p = prog[currentQuestion.id];
+      var correctChoice = currentQuestion.choices[currentQuestion.correctIndex] || "";
+      
+      debugBox.style.display = "block";
+      debugBox.textContent = "DEBUG (Ctrl+Shift+Z で切替)\n" +
+        "id: " + currentQuestion.id + "\n" +
+        "category: " + currentQuestion.category + "\n" +
+        "correctIndex: " + (currentQuestion.correctIndex + 1) + " [" + correctChoice + "]\n" +
+        "progress: " + (p ? ("box=" + p.box + " correct=" + p.correct + " wrong=" + p.wrong + " nextDue=" + p.nextDue) : "初出題") + "\n" +
+        "queue: " + (queueIndex + 1) + "/" + todayQueue.length;
+    }
+
+    // イベント設定
+    explainBtn.addEventListener("click", toggleExplanation);
+    nextBtn.addEventListener("click", function() {
+      queueIndex++;
+      showNextQuestion();
+    });
+
+    window.addEventListener("keydown", function (e) {
+      if (e.ctrlKey && e.shiftKey && (e.key === "z" || e.key === "Z")) {
+        debugMode = !debugMode;
+        updateDebugView();
+      }
+    });
+
+    window.addEventListener("load", function () {
+      loadCsvFromUrl(CSV_URL);
+    });
+  </script>
+</body>
+</html>
