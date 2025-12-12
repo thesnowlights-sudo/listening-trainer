@@ -519,17 +519,15 @@
 
     function showNextQuestion() {
       if (queueIndex >= todayQueue.length) {
-        // 一周完了したら、今日完了リストをクリアして新しいキューを作成
-        saveSessionProgress([]); // 完了リストをクリア
-        todayQueue = getTodayQueue(allQuestions, true);
-        queueIndex = 0;
-        
+        // 一周完了したら、同じキューをシャッフルして再利用
         if (todayQueue.length === 0) {
-          // すべての問題が復習期限前の場合（通常は起こらない）
-          alert("すべての問題が復習期限前です。また明日お待ちしています！");
+          alert("問題がありません。また明日お待ちしています！");
           return;
         }
-        alert("一周完了！もう一度最初から出題します。");
+        
+        shuffleArray(todayQueue);
+        queueIndex = 0;
+        alert("一周完了！シャッフルしてもう一度出題します。");
       }
 
       currentQuestion = todayQueue[queueIndex];
