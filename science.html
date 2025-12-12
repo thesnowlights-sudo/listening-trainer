@@ -517,25 +517,33 @@
       nextBtn.style.display = "none";
     }
 
-    function showNextQuestion() {
+ function showNextQuestion() {
+  // ★ 次へ進む前提：前の問題がロックされてても解除する
+  // clearQuestionUI() の中でボタンdisabled解除してる想定
+
   if (queueIndex >= todayQueue.length) {
-    saveSessionProgress([]); // 完了リストをクリア
-    todayQueue = getTodayQueue(allQuestions, true);
+    // 一周完了したら、今日完了リストをクリアして新しいキューを作成
+    saveSessionProgress([]); // セッション完了リストをクリア
+
+    // まず「復習期限が来たものだけ」で作ってみる
+    todayQueue = getTodayQueue(allQuestions, false);
     queueIndex = 0;
 
+    // ★ 空なら「練習モード」として全問題を回す（ここが重要）
     if (todayQueue.length === 0) {
-      alert("すべての問題が復習期限前です。また明日お待ちしています！");
-      return;
+      todayQueue = allQuestions.slice(); // 全問
+      shuffleArray(todayQueue);          // ランダム（shuffleArrayは既存のを使う）
+      queueIndex = 0;
+      alert("一周完了！復習期限前なので、練習モード（全問ランダム）で続けます。");
+    } else {
+      alert("一周完了！復習期限が来た問題で続けます。");
     }
-    alert("一周完了！もう一度最初から出題します。");
   }
 
   currentQuestion = todayQueue[queueIndex];
   showQuestion(currentQuestion);
-
-  queueIndex++; // ★これがないと進まない
+  queueIndex++; // ★ これがないと進まない
 }
-
 
     function showQuestion(q) {
       clearQuestionUI();
@@ -791,4 +799,5 @@
   </script>
 </body>
 </html>
+
 
