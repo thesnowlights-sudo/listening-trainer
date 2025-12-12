@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>理科トレーナー2（埼玉入試対応）</title>
+  <title>理科トレーナー（埼玉入試対応）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
@@ -659,13 +659,39 @@
       var p = prog[currentQuestion.id];
       var correctChoice = currentQuestion.choices[currentQuestion.correctIndex] || "";
       
+      var currentIdx = -1;
+      for (var i = 0; i < allQuestions.length; i++) {
+        if (allQuestions[i].id === currentQuestion.id) {
+          currentIdx = i;
+          break;
+        }
+      }
+      
       debugBox.style.display = "block";
-      debugBox.textContent = "DEBUG (Ctrl+Shift+Z で切替)\n" +
+      debugBox.textContent = "DEBUG (Ctrl+Shift+Z で切替 / ← → で移動)\n" +
+        "index: " + currentIdx + " / " + (allQuestions.length - 1) + "\n" +
         "id: " + currentQuestion.id + "\n" +
         "category: " + currentQuestion.category + "\n" +
         "correctIndex: " + (currentQuestion.correctIndex + 1) + " [" + correctChoice + "]\n" +
         "progress: " + (p ? ("box=" + p.box + " correct=" + p.correct + " wrong=" + p.wrong + " nextDue=" + p.nextDue) : "初出題") + "\n" +
         "queue: " + (queueIndex + 1) + "/" + todayQueue.length;
+    }
+
+    function showQuestionById(targetId) {
+      for (var i = 0; i < allQuestions.length; i++) {
+        if (allQuestions[i].id === targetId) {
+          currentQuestion = allQuestions[i];
+          showQuestion(currentQuestion);
+          return;
+        }
+      }
+    }
+
+    function showQuestionByIndex(idx) {
+      if (idx < 0) idx = 0;
+      if (idx >= allQuestions.length) idx = allQuestions.length - 1;
+      currentQuestion = allQuestions[idx];
+      showQuestion(currentQuestion);
     }
 
     // イベント設定
@@ -676,9 +702,44 @@
     });
 
     window.addEventListener("keydown", function (e) {
+      // デバッグモード切替
       if (e.ctrlKey && e.shiftKey && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
         debugMode = !debugMode;
         updateDebugView();
+        if (debugMode) {
+          alert("🔧 デバッグモードON: ← → キーで問題を移動できます");
+        }
+        return;
+      }
+      
+      // デバッグモード時の矢印キー操作
+      if (!debugMode) return;
+      
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        var currentIdx = -1;
+        for (var i = 0; i < allQuestions.length; i++) {
+          if (allQuestions[i].id === currentQuestion.id) {
+            currentIdx = i;
+            break;
+          }
+        }
+        var nextIdx = currentIdx + 1;
+        if (nextIdx >= allQuestions.length) nextIdx = 0;
+        showQuestionByIndex(nextIdx);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        var currentIdx = -1;
+        for (var i = 0; i < allQuestions.length; i++) {
+          if (allQuestions[i].id === currentQuestion.id) {
+            currentIdx = i;
+            break;
+          }
+        }
+        var prevIdx = currentIdx - 1;
+        if (prevIdx < 0) prevIdx = allQuestions.length - 1;
+        showQuestionByIndex(prevIdx);
       }
     });
 
