@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -209,6 +210,7 @@
     
     // 進捗管理用の定数
     var PROGRESS_KEY = "science_trainer_progress_v1";
+    var SESSION_KEY = "science_trainer_session_v1";
     var DAILY_TARGET = 15;
     var INTERVALS = [1, 2, 5, 999]; // スペースドリピティションの間隔（日数）
 
@@ -259,6 +261,27 @@
       localStorage.setItem(PROGRESS_KEY, JSON.stringify(prog));
     }
 
+    // セッション情報を保存
+    function saveSessionProgress(completedIds) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({
+        date: todayStr(),
+        completed: completedIds
+      }));
+    }
+
+    // セッション情報を読み込み
+    function loadSessionProgress() {
+      try {
+        var data = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
+        if (data.date === todayStr()) {
+          return data.completed || [];
+        }
+        return []; // 日付が違えばリセット
+      } catch (e) {
+        return [];
+      }
+    }
+
     function updateResult(questionId, isCorrect) {
       var prog = loadProgress();
       var now = todayStr();
@@ -284,14 +307,21 @@
       saveProgress(prog);
     }
 
-    function getTodayQueue(questions) {
+    function getTodayQueue(questions, skipCompleted) {
       var prog = loadProgress();
       var today = todayStr();
+      var completedToday = skipCompleted ? loadSessionProgress() : [];
       var due = [];
       var fresh = [];
       
       for (var i = 0; i < questions.length; i++) {
         var q = questions[i];
+        
+        // skipCompletedがtrueの場合のみ、今日完了した問題をスキップ
+        if (skipCompleted && completedToday.indexOf(q.id) !== -1) {
+          continue;
+        }
+        
         var p = prog[q.id];
         
         if (p && p.nextDue <= today) {
@@ -458,7 +488,7 @@
           sessionCorrect = 0;
           sessionTotal = 0;
           
-          todayQueue = getTodayQueue(allQuestions);
+          todayQueue = getTodayQueue(allQuestions, true);
           queueIndex = 0;
           
           quizCard.style.display = "block";
@@ -483,21 +513,23 @@
       explanationBox.style.display = "none";
       explanationBox.innerHTML = "";
       explainBtn.style.display = "none";
-      explainBtn.textContent = "解説を見る"; 
+      explainBtn.textContent = "解説を見る"; // ボタンテキストをリセット
       nextBtn.style.display = "none";
     }
 
     function showNextQuestion() {
       if (queueIndex >= todayQueue.length) {
-        // 一周完了したら新しいキューを作成
-        todayQueue = getTodayQueue(allQuestions);
+        // 一周完了したら、今日完了リストをクリアして新しいキューを作成
+        saveSessionProgress([]); // 完了リストをクリア
+        todayQueue = getTodayQueue(allQuestions, true);
         queueIndex = 0;
         
         if (todayQueue.length === 0) {
-          alert("おめでとうございます！今日の問題はすべて完了しました。");
+          // すべての問題が復習期限前の場合（通常は起こらない）
+          alert("すべての問題が復習期限前です。また明日お待ちしています！");
           return;
         }
-        alert("一周完了！間違えた問題を含めて再度出題します。");
+        alert("一周完了！もう一度最初から出題します。");
       }
 
       currentQuestion = todayQueue[queueIndex];
@@ -554,6 +586,13 @@
         playCorrectSound(); // 正解音を鳴らす
         updateResult(currentQuestion.id, true);
         
+        // 正解した問題を完了リストに追加
+        var completedToday = loadSessionProgress();
+        if (completedToday.indexOf(currentQuestion.id) === -1) {
+          completedToday.push(currentQuestion.id);
+          saveSessionProgress(completedToday);
+        }
+        
         // 正解の場合は自動で次へ
         setTimeout(function() {
           queueIndex++;
@@ -602,6 +641,7 @@
 
     function updateProgressInfo() {
       var prog = loadProgress();
+      var completedToday = loadSessionProgress();
       var totalAnswered = 0;
       var totalCorrect = 0;
       var totalWrong = 0;
@@ -621,7 +661,7 @@
         qInfo = "この問題: 正解" + (currentProg.correct || 0) + "回 / ミス" + (currentProg.wrong || 0) + "回 | ";
       }
       
-      progressInfo.textContent = qInfo + "今日の出題: " + (queueIndex + 1) + "/" + todayQueue.length + " | 累計: " + totalAnswered + "回答 / マスター: " + masteredCount + "問";
+      progressInfo.textContent = qInfo + "今日の進捗: " + completedToday.length + "問完了 / 累計: " + totalAnswered + "回答 / マスター: " + masteredCount + "問";
     }
 
     function toggleExplanation() {
@@ -750,4 +790,3 @@
   </script>
 </body>
 </html>
-
