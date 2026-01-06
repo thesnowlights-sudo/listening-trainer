@@ -23,8 +23,24 @@
       const [todayCards, setTodayCards] = useState([]);
       const [currentIndex, setCurrentIndex] = useState(0);
       const [statsMessage, setStatsMessage] = useState('');
+      const [showSettings, setShowSettings] = useState(false);
+      const [settings, setSettings] = useState({
+        selectedTags: ['basic'],
+        maxCards: 20,
+        maxNewCards: 5,
+        unlockedTags: ['basic']
+      });
+      const [availableTags, setAvailableTags] = useState([]);
+      const [tagProgress, setTagProgress] = useState({});
+      const [showUnlockMessage, setShowUnlockMessage] = useState(false);
+      const [unlockedTagName, setUnlockedTagName] = useState('');
 
       const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ_RNtUHj5rxFr6LCvH3r-eFrSfx6YNd_ZoDtHln2vtz86NVgs5Awq6hwZRI8i3s5iQBkfRoUNzIA7j/pub?gid=0&single=true&output=csv';
+
+      const MASTERY_THRESHOLD = 0.7; // 70%
+      const TAG_HIERARCHY = {
+        'basic': ['cooking', 'travel', 'talk']
+      };
 
       const getTodayString = () => {
         const today = new Date();
@@ -34,7 +50,6 @@
       const parseCSV = (text) => {
         const lines = text.trim().split('\n');
         
-        // CSVの1行をパースする関数（引用符を考慮）
         const parseLine = (line) => {
           const result = [];
           let current = '';
@@ -73,16 +88,64 @@
         });
       };
 
+      const calculateTagProgress = (allCards) => {
+        const progress = {};
+        const tags = [...new Set(allCards.map(c => c.tag).filter(Boolean))];
+        
+        tags.forEach(tag => {
+          const tagCards = allCards.filter(c => c.tag === tag);
+          const box3Cards = tagCards.filter(c => c.box === '3');
+          const masteryRate = tagCards.length > 0 ? box3Cards.length / tagCards.length : 0;
+          
+          progress[tag] = {
+            total: tagCards.length,
+            box3: box3Cards.length,
+            rate: masteryRate,
+            mastered: masteryRate >= MASTERY_THRESHOLD
+          };
+        });
+        
+        return progress;
+      };
+
+      const checkAndUnlockTags = (progress, currentUnlocked) => {
+        const newUnlocked = [...currentUnlocked];
+        let newlyUnlockedTags = [];
+        
+        Object.keys(TAG_HIERARCHY).forEach(parentTag => {
+          if (progress[parentTag]?.mastered) {
+            const childTags = TAG_HIERARCHY[parentTag];
+            childTags.forEach(childTag => {
+              if (!newUnlocked.includes(childTag)) {
+                newUnlocked.push(childTag);
+                newlyUnlockedTags.push(childTag);
+              }
+            });
+          }
+        });
+        
+        return { newUnlocked, newlyUnlockedTags };
+      };
+
       const loadCards = async () => {
         try {
           const response = await fetch(CSV_URL);
           const text = await response.text();
           const csvCards = parseCSV(text);
           
+          const tags = [...new Set(csvCards.map(c => c.tag).filter(Boolean))];
+          setAvailableTags(tags);
+          
           const saved = localStorage.getItem('tamilSRS');
           let progress = {};
           if (saved) {
             progress = JSON.parse(saved);
+          }
+          
+          const savedSettings = localStorage.getItem('tamilSRSSettings');
+          if (savedSettings) {
+            const loadedSettings = JSON.parse(savedSettings);
+            setSettings(loadedSettings);
           }
           
           const mergedCards = csvCards.map(card => {
@@ -99,6 +162,10 @@
           
           setCards(mergedCards);
           saveProgress(mergedCards);
+          
+          const tagProg = calculateTagProgress(mergedCards);
+          setTagProgress(tagProg);
+          
           setLoading(false);
         } catch (error) {
           console.error('Failed to load CSV:', error);
@@ -107,6 +174,9 @@
             const progress = JSON.parse(saved);
             const loadedCards = Object.values(progress);
             setCards(loadedCards);
+            
+            const tagProg = calculateTagProgress(loadedCards);
+            setTagProgress(tagProg);
           }
           setLoading(false);
         }
@@ -115,26 +185,43 @@
       const saveProgress = (cardsToSave) => {
         const progress = {};
         cardsToSave.forEach(card => {
-       progress[card.id] = {
-        id: card.id,
-        explain: card.explain, 
-        box: card.box,
-        due: card.due
-      };
-
+          progress[card.id] = {
+            id: card.id,
+            explain: card.explain, 
+            box: card.box,
+            due: card.due
+          };
         });
         localStorage.setItem('tamilSRS', JSON.stringify(progress));
       };
 
+      const saveSettings = (newSettings) => {
+        setSettings(newSettings);
+        localStorage.setItem('tamilSRSSettings', JSON.stringify(newSettings));
+      };
+
       const getTodayCards = (allCards) => {
         const today = getTodayString();
-        const dueCards = allCards.filter(card => {
+        
+        let filteredCards = allCards.filter(card => 
+          settings.selectedTags.includes(card.tag)
+        );
+        
+        const dueCards = filteredCards.filter(card => {
           if (!card.due || card.due === '') return true;
           return card.due <= today;
         });
         
-        const shuffled = [...dueCards].sort(() => Math.random() - 0.5);
-        return shuffled;
+        const reviewCards = dueCards.filter(card => card.box !== '1' || card.due < today);
+        const newCards = dueCards.filter(card => card.box === '1' && (!card.due || card.due >= today));
+        
+        const shuffledReview = [...reviewCards].sort(() => Math.random() - 0.5);
+        const shuffledNew = [...newCards].sort(() => Math.random() - 0.5);
+        
+        const limitedNew = shuffledNew.slice(0, settings.maxNewCards);
+        
+        const combined = [...shuffledReview, ...limitedNew];
+        return combined.slice(0, settings.maxCards);
       };
 
       useEffect(() => {
@@ -155,9 +242,8 @@
             setCurrentCard(null);
           }
         }
-      }, [cards]);
+      }, [cards, settings.selectedTags, settings.maxCards, settings.maxNewCards]);
 
-      // 答えを表示したときに自動で音声再生
       useEffect(() => {
         if (showAnswer && currentCard) {
           speakTamil(currentCard.back_ta_roman);
@@ -166,7 +252,6 @@
 
       const speakTamil = (text) => {
         if ('speechSynthesis' in window) {
-          // 既存の再生を停止
           speechSynthesis.cancel();
           
           const utterance = new SpeechSynthesisUtterance(text);
@@ -198,6 +283,29 @@
         return today.toISOString().split('T')[0];
       };
 
+      const updateCardsAndCheckUnlock = (updatedCards) => {
+        setCards(updatedCards);
+        saveProgress(updatedCards);
+        
+        const newProgress = calculateTagProgress(updatedCards);
+        setTagProgress(newProgress);
+        
+        const { newUnlocked, newlyUnlockedTags } = checkAndUnlockTags(newProgress, settings.unlockedTags);
+        
+        if (newlyUnlockedTags.length > 0) {
+          const newSettings = {
+            ...settings,
+            unlockedTags: newUnlocked,
+            selectedTags: newUnlocked
+          };
+          saveSettings(newSettings);
+          
+          setUnlockedTagName(newlyUnlockedTags.join(', '));
+          setShowUnlockMessage(true);
+          setTimeout(() => setShowUnlockMessage(false), 5000);
+        }
+      };
+
       const handleGood = () => {
         if (!currentCard) return;
         
@@ -211,8 +319,7 @@
             : c
         );
         
-        setCards(updatedCards);
-        saveProgress(updatedCards);
+        updateCardsAndCheckUnlock(updatedCards);
         moveToNext();
       };
 
@@ -227,8 +334,7 @@
             : c
         );
         
-        setCards(updatedCards);
-        saveProgress(updatedCards);
+        updateCardsAndCheckUnlock(updatedCards);
         moveToNext();
       };
 
@@ -254,6 +360,26 @@
         return currentCard.front_en;
       };
 
+      const toggleTag = (tag) => {
+        if (!settings.unlockedTags.includes(tag)) return;
+        
+        const newTags = settings.selectedTags.includes(tag)
+          ? settings.selectedTags.filter(t => t !== tag)
+          : [...settings.selectedTags, tag];
+        
+        if (newTags.length === 0) return;
+        
+        saveSettings({ ...settings, selectedTags: newTags });
+      };
+
+      const selectAllTags = () => {
+        saveSettings({ ...settings, selectedTags: [...settings.unlockedTags] });
+      };
+
+      const deselectAllTags = () => {
+        saveSettings({ ...settings, selectedTags: ['basic'] });
+      };
+
       if (loading) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center">
@@ -265,13 +391,157 @@
       return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 p-4">
           <div className="max-w-2xl mx-auto">
+            {showUnlockMessage && (
+              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce">
+                🎉 {unlockedTagName} が解放されました！
+              </div>
+            )}
+
             <div className="text-center mb-8 pt-8">
-              <h1 className="text-4xl font-bold text-orange-800 mb-2">
-                தமிழ் SRS
-              </h1>
+              <div className="flex items-center justify-center gap-4 mb-2">
+                <h1 className="text-4xl font-bold text-orange-800">
+                  தமிழ் SRS
+                </h1>
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="p-2 rounded-lg hover:bg-white/50 transition-colors"
+                  title="設定"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6m5.2-13.2l-4.2 4.2m0 6l4.2 4.2M23 12h-6m-6 0H1m18.2 5.2l-4.2-4.2m-6 0l-4.2 4.2"></path>
+                  </svg>
+                </button>
+              </div>
               <p className="text-gray-600">English → Tamil Learning</p>
-              <p className="text-sm text-gray-500 mt-2">{statsMessage}</p>
+              
+              {/* 習得率表示 */}
+              <div className="mt-4 flex flex-wrap justify-center gap-3">
+                {availableTags.map(tag => {
+                  const prog = tagProgress[tag];
+                  if (!prog) return null;
+                  
+                  const isUnlocked = settings.unlockedTags.includes(tag);
+                  const percentage = Math.round(prog.rate * 100);
+                  
+                  return (
+                    <div 
+                      key={tag}
+                      className={`px-4 py-2 rounded-lg text-sm ${
+                        isUnlocked 
+                          ? prog.mastered 
+                            ? 'bg-green-100 text-green-800 border-2 border-green-400' 
+                            : 'bg-blue-100 text-blue-800'
+                          : 'bg-gray-200 text-gray-500'
+                      }`}
+                    >
+                      {!isUnlocked && '🔒 '}
+                      {prog.mastered && '✓ '}
+                      <span className="font-semibold">{tag}</span>
+                      <span className="ml-2">{percentage}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <p className="text-sm text-gray-500 mt-3">{statsMessage}</p>
             </div>
+
+            {showSettings && (
+              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">学習設定</h2>
+                
+                <div className="space-y-6">
+                  {/* タグ選択 */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700">学習範囲（タグ）</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={selectAllTags}
+                          className="text-xs px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          全選択
+                        </button>
+                        <button
+                          onClick={deselectAllTags}
+                          className="text-xs px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          basic のみ
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {availableTags.map(tag => {
+                        const isUnlocked = settings.unlockedTags.includes(tag);
+                        const isSelected = settings.selectedTags.includes(tag);
+                        
+                        return (
+                          <button
+                            key={tag}
+                            onClick={() => toggleTag(tag)}
+                            disabled={!isUnlocked}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              !isUnlocked
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : isSelected
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                            }`}
+                          >
+                            {!isUnlocked && '🔒 '}
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      ※タグは70%達成で解放されます
+                    </p>
+                  </div>
+
+                  {/* 1日の上限 */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 block mb-2">
+                      1日の学習上限: {settings.maxCards}問
+                    </label>
+                    <input
+                      type="range"
+                      min="5"
+                      max="50"
+                      step="5"
+                      value={settings.maxCards}
+                      onChange={(e) => saveSettings({ ...settings, maxCards: parseInt(e.target.value) })}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>5</span>
+                      <span>50</span>
+                    </div>
+                  </div>
+
+                  {/* 新規カード上限 */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 block mb-2">
+                      新規カード上限: {settings.maxNewCards}問/日
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="20"
+                      step="1"
+                      value={settings.maxNewCards}
+                      onChange={(e) => saveSettings({ ...settings, maxNewCards: parseInt(e.target.value) })}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>0</span>
+                      <span>20</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {currentCard ? (
               <div className="bg-white rounded-2xl shadow-xl p-8 mb-4">
@@ -314,15 +584,14 @@
                           </div>
                         </div>
 
-                       {currentCard.explain && (
-                       <div>
-                          <div className="text-sm text-gray-500 mb-1">補足</div>
-                          <div className="text-base text-gray-800 whitespace-pre-wrap">
-                            {currentCard.explain}
-                        </div>
-                        </div>
+                        {currentCard.explain && (
+                          <div>
+                            <div className="text-sm text-gray-500 mb-1">補足</div>
+                            <div className="text-base text-gray-800 whitespace-pre-wrap">
+                              {currentCard.explain}
+                            </div>
+                          </div>
                         )}
-
                         
                         {parseInt(currentCard.box) === 3 && (
                           <div>
@@ -397,7 +666,3 @@
   </script>
 </body>
 </html>
-
-
-
-
