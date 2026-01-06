@@ -159,6 +159,13 @@
         }
       }, [cards]);
 
+      // 答えを表示したときに自動で音声再生
+      useEffect(() => {
+        if (showAnswer && currentCard) {
+          speakTamil(currentCard.back_ta_roman);
+        }
+      }, [showAnswer, currentCard]);
+
       const speakTamil = (text) => {
         if ('speechSynthesis' in window) {
           // 既存の再生を停止
