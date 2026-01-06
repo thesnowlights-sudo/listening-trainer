@@ -316,12 +316,15 @@
                           </div>
                         </div>
 
-          <div>
-                          <div className="text-sm text-gray-500 mb-1">タ補足</div>
-                          <div className="text-3xl font-semibold text-gray-800">
-                            {explain}
-                          </div>
+                       {currentCard.explain && (
+                       <div>
+                          <div className="text-sm text-gray-500 mb-1">補足</div>
+                          <div className="text-base text-gray-800 whitespace-pre-wrap">
+                            {currentCard.explain}
                         </div>
+                        </div>
+                        )}
+
                         
                         {parseInt(currentCard.box) === 3 && (
                           <div>
@@ -396,4 +399,5 @@
   </script>
 </body>
 </html>
+
 
