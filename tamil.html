@@ -115,15 +115,17 @@
       const saveProgress = (cardsToSave) => {
         const progress = {};
         cardsToSave.forEach(card => {
-          progress[card.id] = {
-            id: card.id,
-            tag: card.tag,
-            front_en: card.front_en,
-            back_ta_roman: card.back_ta_roman,
-            back_ta_text: card.back_ta_text,
-            box: card.box,
-            due: card.due
-          };
+       progress[card.id] = {
+        id: card.id,
+        tag: card.tag,
+        front_en: card.front_en,
+        back_ta_roman: card.back_ta_roman,
+        back_ta_text: card.back_ta_text,
+        explain: card.explain, // ←追加
+        box: card.box,
+        due: card.due
+      };
+
         });
         localStorage.setItem('tamilSRS', JSON.stringify(progress));
       };
@@ -399,5 +401,6 @@
   </script>
 </body>
 </html>
+
 
 
