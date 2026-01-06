@@ -117,11 +117,7 @@
         cardsToSave.forEach(card => {
        progress[card.id] = {
         id: card.id,
-        tag: card.tag,
-        front_en: card.front_en,
-        back_ta_roman: card.back_ta_roman,
-        back_ta_text: card.back_ta_text,
-        explain: card.explain, // ←追加
+        explain: card.explain, 
         box: card.box,
         due: card.due
       };
@@ -401,6 +397,7 @@
   </script>
 </body>
 </html>
+
 
 
 
