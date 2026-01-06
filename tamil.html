@@ -151,7 +151,11 @@
           const mergedCards = csvCards.map(card => {
             const savedCard = progress[card.id];
             if (savedCard) {
-              return { ...card, ...savedCard };
+              return { 
+                ...card, 
+                box: savedCard.box,
+                due: savedCard.due
+              };
             }
             return {
               ...card,
